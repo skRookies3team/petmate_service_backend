@@ -33,3 +33,9 @@ server:
 #    # API Gateway 포트
 #    url: "${API_GATEWAY}"
 
+external:
+  user-service:
+    url: ${USER_SERVICE_URL}
+  pet-service:
+    url: ${PET_SERVICE_URL}
+
