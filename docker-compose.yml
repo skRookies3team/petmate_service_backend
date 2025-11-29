@@ -9,8 +9,8 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: ${DB_USERNAME}      # 변수로 변경
-      POSTGRES_PASSWORD: ${DB_PASSWORD}  # 변수로 변경
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: diary_db
     volumes:
       - pg_data:/var/lib/postgresql/data

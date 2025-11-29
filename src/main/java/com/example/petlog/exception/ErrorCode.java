@@ -26,8 +26,10 @@ public enum ErrorCode {
     USER_NAME_DUPLICATE("USER_002","중복된 이름입니다.", HttpStatus.BAD_REQUEST),
     //펫 관련
     PET_NAME_DUPLICATE("PET_002","중복된 이름입니다.", HttpStatus.BAD_REQUEST),
+    PET_NOT_FOUND( "PET_001","존재하지 않는 펫입니다.",  HttpStatus.NOT_FOUND),
 
-
+    // === [DIARY] 다이어리 관련 ===
+    DIARY_NOT_FOUND("DIARY_001", "해당 일기를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
 
     // 서버 오류 (50X)
     INTERNAL_SERVER_ERROR("SERVER_001", "서버 내부 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR),
@@ -43,6 +45,5 @@ public enum ErrorCode {
         this.message = message;
         this.httpStatus = httpStatus;
     }
-
 
 }
