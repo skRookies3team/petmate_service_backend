@@ -44,7 +44,6 @@ public class Recap {
     @Enumerated(EnumType.STRING)
     private RecapStatus status; // GENERATED(완료), WAITING(대기중)
 
-    // [수정] 건강 리포트 데이터 필드 삭제
     // (헬스케어 서비스에서 별도로 조회하여 DTO에 병합함)
 
     // === [하이라이트 목록 (1:N)] ===

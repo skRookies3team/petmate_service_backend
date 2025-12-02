@@ -51,11 +51,6 @@ public class RecapResponse {
                     .mainImageUrl(recap.getMainImageUrl())
                     .momentCount(recap.getMomentCount())
                     .status(recap.getStatus().name())
-                    // [삭제됨] 엔티티에 없는 필드이므로 여기서 set 하지 않음
-                    // .avgHeartRate(recap.getAvgHeartRate())
-                    // .avgStepCount(recap.getAvgStepCount())
-                    // .avgSleepTime(recap.getAvgSleepTime())
-                    // .avgWeight(recap.getAvgWeight())
                     .highlights(recap.getHighlights().stream()
                             .map(Highlight::from)
                             .collect(Collectors.toList()))

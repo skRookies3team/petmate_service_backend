@@ -4,7 +4,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
-// application.yml의 external.notification-service.url 참조
+// Notification service 호출
 @FeignClient(name = "notification-service", url = "${external.notification-service.url}")
 public interface NotificationServiceClient {
 

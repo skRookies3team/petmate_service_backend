@@ -44,7 +44,7 @@ public class RecapController {
         return ResponseEntity.ok(recapService.getRecaps(userId));
     }
 
-    // [추가] 펫별 리캡 조회 (카드 리스트)
+    // 펫별 리캡 조회 (카드 리스트)
     @GetMapping("/pet/{petId}")
     public ResponseEntity<List<RecapResponse.Simple>> getRecapsByPet(@PathVariable Long petId) {
         return ResponseEntity.ok(recapService.getRecapsByPet(petId));
