@@ -1,4 +1,4 @@
-package com.example.petlog.security;
+package com.example.petlog.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

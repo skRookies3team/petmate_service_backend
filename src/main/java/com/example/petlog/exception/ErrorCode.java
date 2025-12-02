@@ -31,6 +31,9 @@ public enum ErrorCode {
     // === [DIARY] 다이어리 관련 ===
     DIARY_NOT_FOUND("DIARY_001", "해당 일기를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
 
+    // ===  리캡 관련 ===
+    RECAP_NOT_FOUND("RECAP_001", "해당 리캡을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+
     // 서버 오류 (50X)
     INTERNAL_SERVER_ERROR("SERVER_001", "서버 내부 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR),
     DATABASE_ERROR("SERVER_002", "데이터베이스 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR),
