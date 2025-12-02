@@ -17,11 +17,23 @@ spring:
       ddl-auto: update
     show-sql: true
     database-platform: org.hibernate.dialect.PostgreSQLDialect
+    properties:
+      hibernate:
+        format_sql: true # SQL 로그 예쁘게 출력
 
   # MongoDB 설정
   data:
     mongodb:
       uri: "${MONGO_URI}"
+
+  # MSA Feign Client 설정
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: 5000 # 연결 시도 제한 시간 (5초)
+            readTimeout: 5000    # 응답 대기 제한 시간 (5초)
 
 server:
   port: 8087
@@ -38,4 +50,6 @@ external:
     url: ${USER_SERVICE_URL}
   pet-service:
     url: ${PET_SERVICE_URL}
+  notification-service:
+    url: ${NOTIFICATION_SERVICE_URL:http://localhost:8080}
 
