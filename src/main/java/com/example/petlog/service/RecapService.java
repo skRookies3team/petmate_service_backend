@@ -10,10 +10,10 @@ public interface RecapService {
     Long createRecap(RecapRequest.Create request);
 
     // 상세 조회
-    RecapResponse.Detail getRecapDetail(Long recapId);
+    RecapResponse.Detail getRecap(Long recapId);
 
     // 사용자별 리캡 전체 목록 조회
-    List<RecapResponse.Simple> getRecaps(Long userId);
+    List<RecapResponse.Simple> getAllRecaps(Long userId);
 
     // [추가] 펫별 리캡 목록 조회
     List<RecapResponse.Simple> getRecapsByPet(Long petId);

@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 
 public class RecapResponse {
 
-    // [Detail] 상세 조회용 (모든 정보 포함)
+    // [Detail] 상세 조회용
     @Data
     @Builder
     @NoArgsConstructor
@@ -30,17 +30,15 @@ public class RecapResponse {
         private Integer momentCount;
         private String status;
 
-        // 건강 리포트 (필드는 유지 -> Service에서 채움)
         private Integer avgHeartRate;
         private Integer avgStepCount;
         private Double avgSleepTime;
         private Double avgWeight;
 
-        // 하이라이트 목록
         private List<Highlight> highlights;
 
-        // Entity -> DTO 변환
-        public static Detail from(Recap recap) {
+        // Entity -> DTO 변환 (Factory Method)
+        public static Detail fromEntity(Recap recap) {
             return Detail.builder()
                     .recapId(recap.getRecapId())
                     .petId(recap.getPetId())
@@ -51,29 +49,30 @@ public class RecapResponse {
                     .mainImageUrl(recap.getMainImageUrl())
                     .momentCount(recap.getMomentCount())
                     .status(recap.getStatus().name())
+                    // 건강 데이터는 Service에서 주입하므로 여기선 skip
                     .highlights(recap.getHighlights().stream()
-                            .map(Highlight::from)
+                            .map(Highlight::fromEntity)
                             .collect(Collectors.toList()))
                     .build();
         }
     }
 
-    // [Simple] 리스트(카드) 조회용 (간략 정보)
+    // [Simple] 리스트 조회용
     @Data
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     public static class Simple {
         private Long recapId;
-        private String title;        // "2024년 1-2월"
-        private String mainImageUrl; // 썸네일
-        private Integer momentCount; // "45개의 순간"
-        private String status;       // "GENERATED" or "WAITING"
+        private String title;
+        private String mainImageUrl;
+        private Integer momentCount;
+        private String status;
         private LocalDate periodStart;
         private LocalDate periodEnd;
-        private LocalDateTime createdAt; // "2024.03.01 생성"
+        private LocalDateTime createdAt;
 
-        public static Simple from(Recap recap) {
+        public static Simple fromEntity(Recap recap) {
             return Simple.builder()
                     .recapId(recap.getRecapId())
                     .title(recap.getTitle())
@@ -96,7 +95,7 @@ public class RecapResponse {
         private String title;
         private String content;
 
-        public static Highlight from(RecapHighlight highlight) {
+        public static Highlight fromEntity(RecapHighlight highlight) {
             return Highlight.builder()
                     .title(highlight.getTitle())
                     .content(highlight.getContent())

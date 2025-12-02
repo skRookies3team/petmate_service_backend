@@ -1,5 +1,8 @@
 package com.example.petlog.dto.request;
 
+import com.example.petlog.entity.Recap;
+import com.example.petlog.entity.RecapHighlight;
+import com.example.petlog.entity.RecapStatus;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -27,16 +30,34 @@ public class RecapRequest {
         private LocalDate periodStart;
         private LocalDate periodEnd;
         private String mainImageUrl;
-        private Integer momentCount; // 분석된 순간의 개수
-
-        // 건강 리포트 데이터
-        private Integer avgHeartRate;
-        private Integer avgStepCount;
-        private Double avgSleepTime;
-        private Double avgWeight;
+        private Integer momentCount;
 
         // 하이라이트 목록
         private List<HighlightDto> highlights;
+
+        // DTO -> Entity 변환 메서드
+        public Recap toEntity() {
+            Recap recap = Recap.builder()
+                    .userId(this.userId)
+                    .petId(this.petId)
+                    .title(this.title)
+                    .summary(this.summary)
+                    .periodStart(this.periodStart)
+                    .periodEnd(this.periodEnd)
+                    .mainImageUrl(this.mainImageUrl)
+                    .momentCount(this.momentCount)
+                    .status(RecapStatus.GENERATED) // 기본 상태 설정
+                    .build();
+
+            // 하이라이트 리스트가 있다면 Entity로 변환하여 추가
+            if (this.highlights != null) {
+                this.highlights.stream()
+                        .map(HighlightDto::toEntity)
+                        .forEach(recap::addHighlight); // Recap의 연관관계 편의 메서드 사용
+            }
+
+            return recap;
+        }
     }
 
     @Data
@@ -46,5 +67,13 @@ public class RecapRequest {
     public static class HighlightDto {
         private String title;
         private String content;
+
+        // DTO -> Entity 변환
+        public RecapHighlight toEntity() {
+            return RecapHighlight.builder()
+                    .title(this.title)
+                    .content(this.content)
+                    .build();
+        }
     }
 }

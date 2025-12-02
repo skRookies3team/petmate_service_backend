@@ -34,14 +34,14 @@ public class RecapController {
 
     // 상세 조회
     @GetMapping("/{recapId}")
-    public ResponseEntity<RecapResponse.Detail> getRecapDetail(@PathVariable Long recapId) {
-        return ResponseEntity.ok(recapService.getRecapDetail(recapId));
+    public ResponseEntity<RecapResponse.Detail> getRecap(@PathVariable Long recapId) {
+        return ResponseEntity.ok(recapService.getRecap(recapId));
     }
 
     // 사용자별 전체 리캡 조회 (카드 리스트)
     @GetMapping("/user/{userId}")
-    public ResponseEntity<List<RecapResponse.Simple>> getRecaps(@PathVariable Long userId) {
-        return ResponseEntity.ok(recapService.getRecaps(userId));
+    public ResponseEntity<List<RecapResponse.Simple>> getAllRecaps(@PathVariable Long userId) {
+        return ResponseEntity.ok(recapService.getAllRecaps(userId));
     }
 
     // 펫별 리캡 조회 (카드 리스트)
