@@ -5,6 +5,7 @@ import com.example.petlog.client.UserServiceClient;
 import com.example.petlog.dto.request.DiaryRequest;
 import com.example.petlog.dto.response.DiaryResponse;
 import com.example.petlog.entity.Diary;
+import com.example.petlog.entity.DiaryImage;
 import com.example.petlog.exception.EntityNotFoundException;
 import com.example.petlog.exception.ErrorCode;
 import com.example.petlog.repository.DiaryRepository;
@@ -25,7 +26,7 @@ public class DiaryServiceImpl implements DiaryService {
     @Override
     @Transactional
     public Long createDiary(DiaryRequest.Create request) {
-        // 1. MSA 검증 (로컬 테스트 시 주석 처리 가능)
+        // 1. MSA 검증 (로컬 테스트 시 주석 처리)
         /*
         if (!userClient.checkUserExists(request.getUserId())) {
             throw new EntityNotFoundException(ErrorCode.USER_NOT_FOUND);
@@ -35,10 +36,10 @@ public class DiaryServiceImpl implements DiaryService {
         }
         */
 
-        // 2. DTO -> Entity 변환 (DTO 내부 로직 사용)
+        // 2. DTO -> Entity 변환
         Diary diary = request.toEntity();
 
-        // 3. 저장 (Cascade 설정으로 인해 Image도 자동 저장됨)
+        // 3. 저장
         return diaryRepository.save(diary).getDiaryId();
     }
 
@@ -47,7 +48,6 @@ public class DiaryServiceImpl implements DiaryService {
         Diary diary = diaryRepository.findById(diaryId)
                 .orElseThrow(() -> new EntityNotFoundException(ErrorCode.DIARY_NOT_FOUND));
 
-        // Entity -> DTO 변환 (메서드명 변경: from -> fromEntity)
         return DiaryResponse.fromEntity(diary);
     }
 
@@ -57,12 +57,13 @@ public class DiaryServiceImpl implements DiaryService {
         Diary diary = diaryRepository.findById(diaryId)
                 .orElseThrow(() -> new EntityNotFoundException(ErrorCode.DIARY_NOT_FOUND));
 
-        // Dirty Checking을 통한 업데이트
+        // [수정] PATCH (부분 수정) 로직 적용
+        // 요청값이 null이면 기존 값을 유지하고, 값이 있으면 업데이트
         diary.update(
-                request.getContent(),
-                request.getVisibility(),
-                request.getWeather(),
-                request.getMood()
+                request.getContent() != null ? request.getContent() : diary.getContent(),
+                request.getVisibility() != null ? request.getVisibility() : diary.getVisibility(),
+                request.getWeather() != null ? request.getWeather() : diary.getWeather(),
+                request.getMood() != null ? request.getMood() : diary.getMood()
         );
     }
 
