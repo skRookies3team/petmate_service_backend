@@ -2,14 +2,17 @@ package com.example.petlog.dto.request;
 
 import com.example.petlog.entity.Diary;
 import com.example.petlog.entity.DiaryImage;
-import com.example.petlog.entity.Visibility; // Visibility Enum 위치 확인 필요
+import com.example.petlog.entity.PhotoArchive;
+import com.example.petlog.entity.Visibility;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class DiaryRequest {
 
@@ -35,7 +38,7 @@ public class DiaryRequest {
         // 이미지 리스트
         private List<Image> images;
 
-        // DTO -> Entity 변환
+        // DTO -> Diary Entity 변환
         public Diary toEntity() {
             Diary diary = Diary.builder()
                     .userId(this.userId)
@@ -47,14 +50,26 @@ public class DiaryRequest {
                     .mood(this.mood)
                     .build();
 
-            // 이미지 리스트가 있다면 변환하여 추가
             if (this.images != null) {
                 this.images.stream()
                         .map(Image::toEntity)
-                        .forEach(diary::addImage); // Diary 엔티티의 편의 메서드 사용
+                        .forEach(diary::addImage);
             }
 
             return diary;
+        }
+
+        // [추가] DTO -> PhotoArchive Entity List 변환
+        public List<PhotoArchive> toPhotoArchiveEntities() {
+            if (this.images == null || this.images.isEmpty()) {
+                return Collections.emptyList();
+            }
+            return this.images.stream()
+                    .map(img -> PhotoArchive.builder()
+                            .userId(this.userId) // 사용자 ID 사용
+                            .imageUrl(img.getImageUrl())
+                            .build())
+                    .collect(Collectors.toList());
         }
     }
 
@@ -80,7 +95,7 @@ public class DiaryRequest {
         private Integer imgOrder;
         private Boolean mainImage;
 
-        // DTO -> Entity 변환
+        // DTO -> DiaryImage Entity 변환
         public DiaryImage toEntity() {
             return DiaryImage.builder()
                     .imageUrl(this.imageUrl)

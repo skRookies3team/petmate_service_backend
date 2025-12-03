@@ -16,7 +16,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -24,7 +23,7 @@ import java.util.stream.Collectors;
 public class DiaryServiceImpl implements DiaryService {
 
     private final DiaryRepository diaryRepository;
-    private final PhotoArchiveRepository photoArchiveRepository; // [추가] 보관함 레포지토리
+    private final PhotoArchiveRepository photoArchiveRepository;
     private final UserServiceClient userClient;
     private final PetServiceClient petClient;
 
@@ -47,16 +46,10 @@ public class DiaryServiceImpl implements DiaryService {
         // 3. 일기 저장 (Cascade 설정으로 인해 DiaryImage 테이블에도 자동 저장됨)
         Diary savedDiary = diaryRepository.save(diary);
 
-        // 4. [핵심 로직 추가] 전체 사진 보관함(PhotoArchive)에 별도 저장
-        // -> 이렇게 하면 나중에 다이어리(Diary)를 삭제해도 보관함 데이터(PhotoArchive)는 유지
-        if (request.getImages() != null && !request.getImages().isEmpty()) {
-            List<PhotoArchive> archives = request.getImages().stream()
-                    .map(img -> PhotoArchive.builder()
-                            .userId(request.getUserId()) // 일기가 아닌 사용자에게 귀속
-                            .imageUrl(img.getImageUrl())
-                            .build())
-                    .collect(Collectors.toList());
-
+        // 4. [핵심 로직] 전체 사진 보관함(PhotoArchive) 별도 저장
+        // -> DTO 내부 메서드를 사용하여 변환 로직을 위임 (서비스 코드 간소화)
+        List<PhotoArchive> archives = request.toPhotoArchiveEntities();
+        if (!archives.isEmpty()) {
             photoArchiveRepository.saveAll(archives);
         }
 
@@ -78,7 +71,6 @@ public class DiaryServiceImpl implements DiaryService {
                 .orElseThrow(() -> new EntityNotFoundException(ErrorCode.DIARY_NOT_FOUND));
 
         // PATCH (부분 수정) 로직
-        // 요청값이 null이면 기존 값을 유지하고, 값이 있으면 업데이트
         diary.update(
                 request.getContent() != null ? request.getContent() : diary.getContent(),
                 request.getVisibility() != null ? request.getVisibility() : diary.getVisibility(),
