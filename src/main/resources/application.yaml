@@ -49,6 +49,10 @@ external:
   storage-service:
     url: ${STORAGE_SERVICE_URL:http://localhost:8084}
 
+# Kakao API 설정
+kakao:
+  rest-api-key: ${KAKAO_REST_API_KEY:}
+
 ---
 # local-test 프로필 설정 시작 (새로운 YAML 문서)
 spring:

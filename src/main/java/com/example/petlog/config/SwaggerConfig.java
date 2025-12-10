@@ -16,8 +16,8 @@ public class SwaggerConfig {
 
     private Info apiInfo() {
         return new Info()
-                .title("Petlog_Diary API")
-                .description("Petlog 프로젝트 Diary API 명세서입니다.")
+                .title("Petlog_PetMate API")
+                .description("Petlog 프로젝트 PetMate API 명세서입니다.")
                 .version("1.0.0");
     }
 }
