@@ -102,7 +102,7 @@ public class MessageService {
 
     private ChatRoomResponse convertToChatRoomResponse(ChatRoom room, Long currentUserId) {
         Long otherUserId = room.getUser1Id().equals(currentUserId) ? room.getUser2Id() : room.getUser1Id();
-        PetMate otherUser = petMateRepository.findByUserId(otherUserId).orElse(null);
+        PetMate otherUser = petMateRepository.findFirstByUserIdOrderByIdAsc(otherUserId).orElse(null);
 
         return ChatRoomResponse.builder()
                 .id(room.getId())
@@ -118,7 +118,7 @@ public class MessageService {
     }
 
     private MessageResponse convertToMessageResponse(Message message, Long currentUserId) {
-        PetMate sender = petMateRepository.findByUserId(message.getSenderId()).orElse(null);
+        PetMate sender = petMateRepository.findFirstByUserIdOrderByIdAsc(message.getSenderId()).orElse(null);
 
         return MessageResponse.builder()
                 .id(message.getId())

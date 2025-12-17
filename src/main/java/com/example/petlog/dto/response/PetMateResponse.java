@@ -24,6 +24,8 @@ public class PetMateResponse {
     private String bio;
     private Integer activityLevel;
     private Double distance;
+    private Double latitude;
+    private Double longitude;
     private String location;
     private List<String> commonInterests;
     private Integer matchScore;

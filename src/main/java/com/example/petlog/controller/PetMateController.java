@@ -83,4 +83,29 @@ public class PetMateController {
         petMateService.updateOnlineStatus(userId, isOnline);
         return ResponseEntity.ok().build();
     }
+
+    /**
+     * 사용자 위치 업데이트
+     */
+    @PutMapping("/location/{userId}")
+    public ResponseEntity<Boolean> updateLocation(
+            @PathVariable Long userId,
+            @RequestParam Double latitude,
+            @RequestParam Double longitude,
+            @RequestParam(required = false) String location) {
+        boolean updated = petMateService.updateLocation(userId, latitude, longitude, location);
+        return ResponseEntity.ok(updated);
+    }
+
+    /**
+     * 사용자 저장된 위치 조회
+     */
+    @GetMapping("/location/{userId}")
+    public ResponseEntity<PetMateResponse> getSavedLocation(@PathVariable Long userId) {
+        PetMateResponse location = petMateService.getSavedLocation(userId);
+        if (location != null) {
+            return ResponseEntity.ok(location);
+        }
+        return ResponseEntity.notFound().build();
+    }
 }

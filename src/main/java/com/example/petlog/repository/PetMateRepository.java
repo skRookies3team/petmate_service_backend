@@ -12,7 +12,7 @@ import java.util.Optional;
 @Repository
 public interface PetMateRepository extends JpaRepository<PetMate, Long> {
 
-        Optional<PetMate> findByUserId(Long userId);
+        Optional<PetMate> findFirstByUserIdOrderByIdAsc(Long userId);
 
         List<PetMate> findByIsActiveTrue();
 
