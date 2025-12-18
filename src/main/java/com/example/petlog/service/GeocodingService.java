@@ -135,7 +135,8 @@ public class GeocodingService {
                             // 도로명 주소 정보
                             if (doc.getRoad_address() != null) {
                                 builder.roadAddress(doc.getRoad_address().getAddress_name())
-                                        .zoneNo(doc.getRoad_address().getZone_no());
+                                        .zoneNo(doc.getRoad_address().getZone_no())
+                                        .buildingName(doc.getRoad_address().getBuilding_name());
                             }
 
                             return builder.build();

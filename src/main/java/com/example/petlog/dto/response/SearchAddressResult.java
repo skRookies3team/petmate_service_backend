@@ -21,4 +21,5 @@ public class SearchAddressResult {
     private String region2; // 구/군
     private String region3; // 동/읍/면
     private String zoneNo; // 우편번호
+    private String buildingName; // 건물명
 }
