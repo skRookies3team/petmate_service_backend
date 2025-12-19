@@ -41,9 +41,9 @@ server:
 # === 외부 서비스 URL 설정 (Default Profile) ===
 external:
   user-service:
-    url: ${USER_SERVICE_URL:http://localhost:8081}
+    url: ${USER_SERVICE_URL:http://localhost:8080}
   pet-service:
-    url: ${PET_SERVICE_URL:http://localhost:8082}
+    url: ${PET_SERVICE_URL:http://localhost:8080}
   notification-service:
     url: ${NOTIFICATION_SERVICE_URL:http://localhost:8083}
   storage-service:
@@ -65,3 +65,10 @@ spring:
         config:
           storage-service: # 특정 Feign Client 설정
             enabled: false # [최종 해결책] Feign Client 빈 생성을 명시적으로 비활성화
+
+# Swagger 설정 (개발 환경 활성화)
+springdoc:
+  api-docs:
+    path: "${SWAGGER_DOCS}"
+  swagger-ui:
+    path: "${SWAGGER_UI}"
