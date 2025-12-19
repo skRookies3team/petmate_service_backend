@@ -36,7 +36,7 @@ spring:
             readTimeout: 5000    # 응답 대기 제한 시간 (5초)
 
 server:
-  port: 8087
+  port: 8089
 
 # === 외부 서비스 URL 설정 (Default Profile) ===
 external:

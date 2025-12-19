@@ -29,7 +29,7 @@ public class PetMateService {
 
     @Transactional
     public PetMateResponse createOrUpdateProfile(PetMateRequest request) {
-        PetMate petMate = petMateRepository.findByUserId(request.getUserId())
+        PetMate petMate = petMateRepository.findFirstByUserIdOrderByIdAsc(request.getUserId())
                 .orElse(new PetMate());
 
         petMate.setUserId(request.getUserId());
@@ -119,7 +119,7 @@ public class PetMateService {
         petMateMatchRepository.save(match);
 
         // Get matched user info
-        PetMate matchedPetMate = petMateRepository.findByUserId(request.getToUserId()).orElse(null);
+        PetMate matchedPetMate = petMateRepository.findFirstByUserIdOrderByIdAsc(request.getToUserId()).orElse(null);
 
         return MatchResponse.builder()
                 .matchId(match.getId())
@@ -164,7 +164,7 @@ public class PetMateService {
                     Long matchedUserId = match.getFromUserId().equals(userId)
                             ? match.getToUserId()
                             : match.getFromUserId();
-                    PetMate petMate = petMateRepository.findByUserId(matchedUserId).orElse(null);
+                    PetMate petMate = petMateRepository.findFirstByUserIdOrderByIdAsc(matchedUserId).orElse(null);
 
                     return MatchResponse.builder()
                             .matchId(match.getId())
@@ -182,11 +182,54 @@ public class PetMateService {
 
     @Transactional
     public void updateOnlineStatus(Long userId, boolean isOnline) {
-        petMateRepository.findByUserId(userId).ifPresent(petMate -> {
+        petMateRepository.findFirstByUserIdOrderByIdAsc(userId).ifPresent(petMate -> {
             petMate.setIsOnline(isOnline);
             petMate.setLastActiveAt(LocalDateTime.now());
             petMateRepository.save(petMate);
         });
+    }
+
+    /**
+     * 사용자 위치 정보만 업데이트 (경량 API)
+     * 레코드가 없으면 새로 생성
+     */
+    @Transactional
+    public boolean updateLocation(Long userId, Double latitude, Double longitude, String location) {
+        PetMate petMate = petMateRepository.findFirstByUserIdOrderByIdAsc(userId)
+                .orElseGet(() -> {
+                    // 레코드가 없으면 새로 생성
+                    PetMate newPetMate = new PetMate();
+                    newPetMate.setUserId(userId);
+                    newPetMate.setUserName("사용자" + userId);
+                    newPetMate.setUserGender("미설정");
+                    newPetMate.setPetName("미등록");
+                    newPetMate.setPetBreed("미등록");
+                    newPetMate.setIsOnline(true);
+                    newPetMate.setIsActive(true);
+                    return newPetMate;
+                });
+
+        petMate.setLatitude(latitude);
+        petMate.setLongitude(longitude);
+        if (location != null) {
+            petMate.setLocation(location);
+        }
+        petMateRepository.save(petMate);
+        return true;
+    }
+
+    /**
+     * 사용자의 저장된 위치 정보 조회
+     */
+    public PetMateResponse getSavedLocation(Long userId) {
+        return petMateRepository.findFirstByUserIdOrderByIdAsc(userId)
+                .map(pm -> PetMateResponse.builder()
+                        .userId(pm.getUserId())
+                        .latitude(pm.getLatitude())
+                        .longitude(pm.getLongitude())
+                        .location(pm.getLocation())
+                        .build())
+                .orElse(null);
     }
 
     private boolean filterByGender(PetMate pm, String gender) {
