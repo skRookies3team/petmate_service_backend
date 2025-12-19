@@ -3,6 +3,7 @@ package com.example.petlog.service;
 import com.example.petlog.client.KakaoGeoClient;
 import com.example.petlog.dto.response.AddressResponse;
 import com.example.petlog.dto.response.KakaoAddressResponse;
+import com.example.petlog.dto.response.KakaoKeywordSearchResponse;
 import com.example.petlog.dto.response.KakaoSearchAddressResponse;
 import com.example.petlog.dto.response.SearchAddressResult;
 import lombok.RequiredArgsConstructor;
@@ -108,52 +109,96 @@ public class GeocodingService {
         String authorization = "KakaoAK " + kakaoRestApiKey;
 
         try {
+            // 1. 먼저 주소 검색 시도
             KakaoSearchAddressResponse kakaoResponse = kakaoGeoClient.searchAddress(
                     authorization, query.trim());
 
-            if (kakaoResponse == null || kakaoResponse.getDocuments() == null
-                    || kakaoResponse.getDocuments().isEmpty()) {
-                log.info("주소 검색 결과가 없습니다: query={}", query);
+            List<SearchAddressResult> results = new ArrayList<>();
+
+            if (kakaoResponse != null && kakaoResponse.getDocuments() != null
+                    && !kakaoResponse.getDocuments().isEmpty()) {
+                results = kakaoResponse.getDocuments().stream()
+                        .map(doc -> {
+                            try {
+                                SearchAddressResult.SearchAddressResultBuilder builder = SearchAddressResult.builder()
+                                        .addressName(doc.getAddress_name())
+                                        .longitude(doc.getX() != null ? Double.parseDouble(doc.getX()) : 0.0)
+                                        .latitude(doc.getY() != null ? Double.parseDouble(doc.getY()) : 0.0);
+
+                                // 지번 주소 정보
+                                if (doc.getAddress() != null) {
+                                    builder.region1(doc.getAddress().getRegion_1depth_name())
+                                            .region2(doc.getAddress().getRegion_2depth_name())
+                                            .region3(doc.getAddress().getRegion_3depth_name());
+                                }
+
+                                // 도로명 주소 정보
+                                if (doc.getRoad_address() != null) {
+                                    builder.roadAddress(doc.getRoad_address().getAddress_name())
+                                            .zoneNo(doc.getRoad_address().getZone_no())
+                                            .buildingName(doc.getRoad_address().getBuilding_name());
+                                }
+
+                                return builder.build();
+                            } catch (Exception e) {
+                                log.warn("주소 파싱 실패: {}", e.getMessage());
+                                return null;
+                            }
+                        })
+                        .filter(r -> r != null)
+                        .collect(Collectors.toList());
+            }
+
+            // 2. 주소 검색 결과가 없으면 키워드 검색 시도 (건물명, 장소명 검색)
+            if (results.isEmpty()) {
+                log.info("주소 검색 결과 없음, 키워드 검색 시도: query={}", query);
+                results = searchByKeyword(authorization, query.trim());
+            }
+
+            log.info("검색 완료: {}개 결과", results.size());
+            return results;
+
+        } catch (Exception e) {
+            log.error("Kakao API 호출 실패: {}", e.getMessage(), e);
+            // 예외 발생시 빈 리스트 반환 (500 에러 대신)
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * 키워드로 장소 검색 (건물명, 상호명 등)
+     */
+    private List<SearchAddressResult> searchByKeyword(String authorization, String query) {
+        try {
+            KakaoKeywordSearchResponse keywordResponse = kakaoGeoClient.searchKeyword(
+                    authorization, query);
+
+            if (keywordResponse == null || keywordResponse.getDocuments() == null
+                    || keywordResponse.getDocuments().isEmpty()) {
+                log.info("키워드 검색 결과도 없습니다: query={}", query);
                 return new ArrayList<>();
             }
 
-            List<SearchAddressResult> results = kakaoResponse.getDocuments().stream()
+            return keywordResponse.getDocuments().stream()
                     .map(doc -> {
                         try {
-                            SearchAddressResult.SearchAddressResultBuilder builder = SearchAddressResult.builder()
+                            return SearchAddressResult.builder()
                                     .addressName(doc.getAddress_name())
+                                    .roadAddress(doc.getRoad_address_name())
                                     .longitude(doc.getX() != null ? Double.parseDouble(doc.getX()) : 0.0)
-                                    .latitude(doc.getY() != null ? Double.parseDouble(doc.getY()) : 0.0);
-
-                            // 지번 주소 정보
-                            if (doc.getAddress() != null) {
-                                builder.region1(doc.getAddress().getRegion_1depth_name())
-                                        .region2(doc.getAddress().getRegion_2depth_name())
-                                        .region3(doc.getAddress().getRegion_3depth_name());
-                            }
-
-                            // 도로명 주소 정보
-                            if (doc.getRoad_address() != null) {
-                                builder.roadAddress(doc.getRoad_address().getAddress_name())
-                                        .zoneNo(doc.getRoad_address().getZone_no())
-                                        .buildingName(doc.getRoad_address().getBuilding_name());
-                            }
-
-                            return builder.build();
+                                    .latitude(doc.getY() != null ? Double.parseDouble(doc.getY()) : 0.0)
+                                    .buildingName(doc.getPlace_name()) // 장소명을 건물명으로 사용
+                                    .build();
                         } catch (Exception e) {
-                            log.warn("주소 파싱 실패: {}", e.getMessage());
+                            log.warn("키워드 검색 결과 파싱 실패: {}", e.getMessage());
                             return null;
                         }
                     })
                     .filter(r -> r != null)
                     .collect(Collectors.toList());
 
-            log.info("주소 검색 완료: {}개 결과", results.size());
-            return results;
-
         } catch (Exception e) {
-            log.error("Kakao API 호출 실패: {}", e.getMessage(), e);
-            // 예외 발생시 빈 리스트 반환 (500 에러 대신)
+            log.error("키워드 검색 실패: {}", e.getMessage());
             return new ArrayList<>();
         }
     }
