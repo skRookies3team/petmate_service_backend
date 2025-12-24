@@ -19,7 +19,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/geocoding")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 @Tag(name = "Geocoding", description = "좌표-주소 변환 API")
 public class GeocodingController {
 

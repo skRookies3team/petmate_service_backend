@@ -21,8 +21,7 @@ public class SecurityConfig {
         public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
                 http
                                 // 1. CORS 설정 적용
-                                .cors(cors -> cors.configurationSource(corsConfigurationSource))
-
+                                .cors(AbstractHttpConfigurer::disable)
                                 // 2. CSRF 해제
                                 .csrf(AbstractHttpConfigurer::disable)
 
@@ -42,7 +41,8 @@ public class SecurityConfig {
                                                 // PetMate & Message API 허용
                                                 .requestMatchers(
                                                                 "/api/petmate/**",
-                                                                "/api/messages/**")
+                                                                "/api/messages/**",
+                                                                "/api/geocoding/**")
                                                 .permitAll()
 
                                                 // 개발 초기 : 아래처럼 다 열어두고 시작
