@@ -36,7 +36,7 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            hands7/petlog:mate-service-${{ github.sha }}
+            jaeseokping/petlog:mate-service-${{ github.sha }}
 
       # - name: Checkout manifest repo
       #   uses: actions/checkout@v4

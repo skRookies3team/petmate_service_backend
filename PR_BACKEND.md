@@ -1,74 +1,100 @@
 # Pull Request - Backend (petmate_service)
 
 ## 📌 제목
-`feat(petmate): 키워드 검색 및 건물명 반환 기능 추가`
+`feat(infra): Docker 컨테이너화 및 환경별 설정 분리`
 
 ---
 
 ## 📝 설명
 
-펫메이트 위치 검색 시 건물명/장소명으로도 검색할 수 있도록 Kakao 키워드 검색 API를 연동하고, 검색 결과에 건물명을 포함하여 반환하도록 개선했습니다.
+petmate_service_backend를 Docker로 컨테이너화하고, 개발(dev)/운영(prod) 환경별 설정 파일을 분리했습니다.
 
 ---
 
 ## ✨ 변경사항
 
-### `src/main/java/com/example/petlog/client/KakaoGeoClient.java`
-- `searchKeyword()` 메서드 추가 - Kakao 키워드 검색 API 연동
+### `Dockerfile` (신규)
+- Eclipse Temurin JRE 17 기반 경량 Docker 이미지 구성
+- 컨테이너 환경에 최적화된 JVM 옵션 적용 (`-XX:+UseContainerSupport`, `-XX:MaxRAMPercentage=75`)
 
-### `src/main/java/com/example/petlog/dto/response/KakaoKeywordSearchResponse.java` (신규)
-- Kakao 키워드 검색 API 응답 DTO 생성
+### `.dockerignore` (신규)
+- Docker 빌드 시 불필요한 파일 제외 (`.git`, `.idea`, `.gradle`, `.env` 등)
+- 빌드 컨텍스트 크기 최소화
 
-### `src/main/java/com/example/petlog/dto/response/SearchAddressResult.java`
-- `buildingName` 필드 추가
+### `src/main/resources/application-dev.yaml` (신규)
+- 로컬 개발 환경 설정 분리
+- `.env` 파일에서 DB 연결 정보 로드
+- PostgreSQL 연결 및 Hibernate 설정
+- 외부 서비스 URL 로컬호스트 기본값 설정
 
-### `src/main/java/com/example/petlog/service/GeocodingService.java`
-- 주소 검색 결과가 없을 때 키워드 검색으로 fallback
-- `searchByKeyword()` private 메서드 추가
-- 키워드 검색 시 `place_name`을 `buildingName`으로 반환
-
-### `src/main/resources/application.yaml`
-- 서버 포트 변경: `8084` → `8089`
-
----
-
-## 🎯 주요 기능
-
-| 기능 | 설명 |
-|------|------|
-| 키워드 검색 지원 | "스타벅스", "롯데타워" 등 건물명/장소명으로 검색 가능 |
-| 건물명 반환 | 검색 결과에 `buildingName` 필드 포함하여 반환 |
-| Fallback 검색 | 주소 검색 결과가 없으면 자동으로 키워드 검색 시도 |
+### `src/main/resources/application-prod.yaml` (수정)
+- 운영 환경 전용 설정으로 리팩토링
+- 필수 환경 변수 검증 추가 (`?DB_URL is required` 등)
+- HikariCP 커넥션 풀 설정 추가
+- MongoDB 연결 설정 추가
+- Health check 엔드포인트 활성화 (`/actuator/health`)
 
 ---
 
-## 🔧 API 변경사항
+## 🎯 환경별 설정
 
-### GET `/api/geocoding/search`
+| 환경 | 프로파일 | 활성화 방법 |
+|------|----------|------------|
+| 개발 | `dev` | `-Dspring.profiles.active=dev` |
+| 운영 | `prod` | `-Dspring.profiles.active=prod` |
 
-**응답 변경사항:**
-```json
-{
-  "addressName": "서울 강남구 역삼동 123-45",
-  "roadAddress": "서울 강남구 테헤란로 123",
-  "latitude": 37.5007,
-  "longitude": 127.0365,
-  "buildingName": "스타벅스 강남역점"  // 추가됨
-}
+---
+
+## 🐳 Docker 빌드 및 실행
+
+```bash
+# JAR 빌드
+./gradlew bootJar
+
+# Docker 이미지 빌드
+docker build -t petmate-service:latest .
+
+# Docker 컨테이너 실행
+docker run -d \
+  -e SPRING_PROFILES_ACTIVE=prod \
+  -e DB_URL=jdbc:postgresql://host:5432/petmate \
+  -e DB_USERNAME=postgres \
+  -e DB_PASSWORD=password \
+  -e MONGO_URI=mongodb://host:27017/petmate \
+  -e API_GATEWAY=https://api.example.com \
+  -e USER_SERVICE_URL=http://user-service:8080 \
+  -e PET_SERVICE_URL=http://pet-service:8080 \
+  -p 8089:8089 \
+  petmate-service:latest
 ```
+
+---
+
+## 🔧 필수 환경 변수 (prod)
+
+| 변수명 | 설명 |
+|--------|------|
+| `DB_URL` | PostgreSQL 연결 URL |
+| `DB_USERNAME` | DB 사용자명 |
+| `DB_PASSWORD` | DB 비밀번호 |
+| `MONGO_URI` | MongoDB 연결 URI |
+| `API_GATEWAY` | API Gateway URL |
+| `USER_SERVICE_URL` | User Service URL |
+| `PET_SERVICE_URL` | Pet Service URL |
 
 ---
 
 ## 🧪 테스트
 
-- [x] 주소 검색 (예: "서울 강남구") 정상 작동 확인
-- [x] 키워드 검색 (예: "스타벅스") 정상 작동 확인
-- [x] 주소 검색 실패 시 키워드 검색 fallback 확인
-- [x] buildingName 필드 정상 반환 확인
+- [ ] `dev` 프로파일로 로컬 실행 확인
+- [ ] Docker 이미지 빌드 확인
+- [ ] Docker 컨테이너 실행 및 health check 확인
 
 ---
 
 ## 📋 의존성
 
-- Spring Cloud OpenFeign (기존)
-- Kakao Maps API (기존)
+- Spring Boot 3.5.7
+- PostgreSQL Driver
+- Spring Cloud OpenFeign
+- Spring Boot Actuator
