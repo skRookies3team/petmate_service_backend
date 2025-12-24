@@ -1,0 +1,46 @@
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  datasource:
+    url: ${DB_URL:?DB_URL is required}
+    username: ${DB_USERNAME:?DB_USERNAME is required}
+    password: ${DB_PASSWORD:?DB_PASSWORD is required}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+        default_schema: mate
+  data:
+    mongodb:
+      uri: ${MONGO_URI:?MONGO_URI is required}
+
+openapi:
+  service:
+    url: ${API_GATEWAY:?API_GATEWAY is required}
+
+external:
+  user-service:
+    url: ${USER_SERVICE_URL:?USER_SERVICE_URL is required}
+  pet-service:
+    url: ${PET_SERVICE_URL:?PET_SERVICE_URL is required}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
