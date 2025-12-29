@@ -32,6 +32,21 @@ external:
   pet-service:
     url: ${PET_SERVICE_URL:?PET_SERVICE_URL is required}
 
+# Kakao API 설정 (지오코딩 필수)
+kakao:
+  rest-api-key: ${KAKAO_REST_API_KEY:?KAKAO_REST_API_KEY is required}
+
+# Feign Client 설정 (Kakao API 호출)
+spring:
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: 10000
+            readTimeout: 10000
+            loggerLevel: BASIC
+
 management:
   endpoints:
     web:

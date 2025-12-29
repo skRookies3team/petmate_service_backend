@@ -33,12 +33,20 @@ public class GeocodingController {
      */
     @GetMapping("/reverse")
     @Operation(summary = "좌표 → 주소 변환", description = "GPS 좌표(경도, 위도)를 주소로 변환합니다.")
-    public ResponseEntity<AddressResponse> reverseGeocode(
+    public ResponseEntity<?> reverseGeocode(
             @Parameter(description = "경도 (longitude)", example = "127.028610") @RequestParam Double x,
             @Parameter(description = "위도 (latitude)", example = "37.498095") @RequestParam Double y) {
 
-        AddressResponse response = geocodingService.getAddressFromCoords(x, y);
-        return ResponseEntity.ok(response);
+        try {
+            AddressResponse response = geocodingService.getAddressFromCoords(x, y);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            // 상세 에러 로깅 및 반환 (디버깅용)
+            String errorMessage = String.format("지오코딩 실패 - 좌표: (%s, %s), 원인: %s", x, y, e.getMessage());
+            return ResponseEntity.status(500).body(java.util.Map.of(
+                    "error", errorMessage,
+                    "cause", e.getClass().getSimpleName()));
+        }
     }
 
     /**
