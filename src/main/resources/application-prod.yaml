@@ -20,10 +20,7 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: false
-        default_schema: mate
-  data:
-    mongodb:
-      uri: ${MONGO_URI:?MONGO_URI is required}
+        default_schema: petmate
 
 openapi:
   service:
