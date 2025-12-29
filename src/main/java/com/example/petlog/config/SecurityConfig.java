@@ -31,25 +31,25 @@ public class SecurityConfig {
 
                                 // 4. 경로별 인가 설정
                                 .authorizeHttpRequests(auth -> auth
-                                                
+
                                                 // Kubernetes 헬스체크 허용
                                                 .requestMatchers(
-                                                        "/actuator/health",
-                                                        "/actuator/health/**"
-                                                ).permitAll()
-                                                
+                                                                "/actuator/health",
+                                                                "/actuator/health/**")
+                                                .permitAll()
+
                                                 // Swagger 관련 경로 모두 허용 (로그인 없이 접속 가능)
                                                 .requestMatchers(
-                                                        "/v3/api-docs/**",
-                                                        "/swagger-ui/**",
-                                                        "/swagger-ui.html")
+                                                                "/v3/api-docs/**",
+                                                                "/swagger-ui/**",
+                                                                "/swagger-ui.html")
                                                 .permitAll()
 
                                                 // PetMate & Message API 허용
                                                 .requestMatchers(
-                                                        "/api/petmate/**",
-                                                        "/api/messages/**",
-                                                        "/api/geocoding/**")
+                                                                "/petmate/**",
+                                                                "/messages/**",
+                                                                "/geocoding/**")
                                                 .permitAll()
 
                                                 // 개발 초기 : 아래처럼 다 열어두고 시작
