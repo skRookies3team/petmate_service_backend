@@ -25,6 +25,14 @@ public class GeocodingController {
     private final GeocodingService geocodingService;
 
     /**
+     * 라우팅 테스트용 간단한 엔드포인트
+     */
+    @GetMapping("/test")
+    public ResponseEntity<String> test() {
+        return ResponseEntity.ok("Geocoding Controller is working! Path: /api/geocoding/test");
+    }
+
+    /**
      * 좌표를 주소로 변환 (Reverse Geocoding)
      * 
      * @param x 경도 (longitude)
