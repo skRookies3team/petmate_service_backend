@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,6 +20,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/geocoding")
 @RequiredArgsConstructor
+@Slf4j
 @Tag(name = "Geocoding", description = "좌표-주소 변환 API")
 public class GeocodingController {
 
@@ -29,6 +31,8 @@ public class GeocodingController {
      */
     @GetMapping("/test")
     public ResponseEntity<String> test() {
+        log.info("========== /geocoding/test 요청 도착! ==========");
+        System.out.println("========== /geocoding/test 요청 도착! (sysout) ==========");
         return ResponseEntity.ok("Geocoding Controller is working! Path: /api/geocoding/test");
     }
 
