@@ -1,16 +1,19 @@
 package com.example.petlog.service;
 
+import com.example.petlog.client.UserServiceClient;
 import com.example.petlog.dto.request.LikeRequest;
 import com.example.petlog.dto.request.PetMateFilterRequest;
 import com.example.petlog.dto.request.PetMateRequest;
 import com.example.petlog.dto.response.ChatRoomResponse;
 import com.example.petlog.dto.response.MatchResponse;
 import com.example.petlog.dto.response.PetMateResponse;
+import com.example.petlog.dto.response.UserInfoResponse;
 import com.example.petlog.entity.PetMate;
 import com.example.petlog.entity.PetMateMatch;
 import com.example.petlog.repository.PetMateMatchRepository;
 import com.example.petlog.repository.PetMateRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,11 +24,13 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PetMateService {
 
     private final PetMateRepository petMateRepository;
     private final PetMateMatchRepository petMateMatchRepository;
     private final MessageService messageService;
+    private final UserServiceClient userServiceClient;
 
     @Transactional
     public PetMateResponse createOrUpdateProfile(PetMateRequest request) {
@@ -191,23 +196,12 @@ public class PetMateService {
 
     /**
      * 사용자 위치 정보만 업데이트 (경량 API)
-     * 레코드가 없으면 새로 생성
+     * 레코드가 없으면 user-service에서 실제 사용자 정보를 가져와서 새로 생성
      */
     @Transactional
     public boolean updateLocation(Long userId, Double latitude, Double longitude, String location) {
         PetMate petMate = petMateRepository.findFirstByUserIdOrderByIdAsc(userId)
-                .orElseGet(() -> {
-                    // 레코드가 없으면 새로 생성
-                    PetMate newPetMate = new PetMate();
-                    newPetMate.setUserId(userId);
-                    newPetMate.setUserName("사용자" + userId);
-                    newPetMate.setUserGender("미설정");
-                    newPetMate.setPetName("미등록");
-                    newPetMate.setPetBreed("미등록");
-                    newPetMate.setIsOnline(true);
-                    newPetMate.setIsActive(true);
-                    return newPetMate;
-                });
+                .orElseGet(() -> createPetMateFromUserService(userId));
 
         petMate.setLatitude(latitude);
         petMate.setLongitude(longitude);
@@ -216,6 +210,82 @@ public class PetMateService {
         }
         petMateRepository.save(petMate);
         return true;
+    }
+
+    /**
+     * user-service에서 실제 사용자 정보를 가져와 PetMate 프로필 생성
+     */
+    private PetMate createPetMateFromUserService(Long userId) {
+        PetMate newPetMate = new PetMate();
+        newPetMate.setUserId(userId);
+        newPetMate.setIsOnline(true);
+        newPetMate.setIsActive(true);
+
+        try {
+            // user-service에서 실제 사용자 정보 가져오기
+            UserInfoResponse userInfo = userServiceClient.getUserInfo(userId);
+
+            if (userInfo != null) {
+                // 사용자 정보 설정
+                newPetMate.setUserName(userInfo.getUsername() != null ? userInfo.getUsername() : "사용자" + userId);
+                newPetMate.setUserAvatar(userInfo.getProfileImage());
+
+                // 성별 매핑 (MALE -> 남성, FEMALE -> 여성)
+                if (userInfo.getGenderType() != null) {
+                    String gender = switch (userInfo.getGenderType().toUpperCase()) {
+                        case "MALE", "M" -> "남성";
+                        case "FEMALE", "F" -> "여성";
+                        default -> "미설정";
+                    };
+                    newPetMate.setUserGender(gender);
+                } else {
+                    newPetMate.setUserGender("미설정");
+                }
+
+                // 첫 번째 펫 정보 설정 (있는 경우)
+                if (userInfo.getPets() != null && !userInfo.getPets().isEmpty()) {
+                    UserInfoResponse.PetInfo firstPet = userInfo.getPets().get(0);
+                    newPetMate.setPetName(firstPet.getPetName() != null ? firstPet.getPetName() : "미등록");
+                    newPetMate.setPetBreed(firstPet.getBreed() != null ? firstPet.getBreed() : "미등록");
+                    newPetMate.setPetPhoto(firstPet.getProfileImage());
+                    newPetMate.setPetAge(firstPet.getAge());
+
+                    // 펫 성별 매핑
+                    if (firstPet.getGenderType() != null) {
+                        String petGender = switch (firstPet.getGenderType().toUpperCase()) {
+                            case "MALE", "M" -> "남아";
+                            case "FEMALE", "F" -> "여아";
+                            default -> null;
+                        };
+                        newPetMate.setPetGender(petGender);
+                    }
+                } else {
+                    newPetMate.setPetName("미등록");
+                    newPetMate.setPetBreed("미등록");
+                }
+
+                log.info("Successfully fetched user info from user-service for userId: {}", userId);
+            } else {
+                setDefaultValues(newPetMate, userId);
+            }
+        } catch (Exception e) {
+            // user-service 호출 실패 시 기본값으로 설정
+            log.warn("Failed to fetch user info from user-service for userId: {}. Using default values. Error: {}",
+                    userId, e.getMessage());
+            setDefaultValues(newPetMate, userId);
+        }
+
+        return newPetMate;
+    }
+
+    /**
+     * 기본값 설정 (user-service 연동 실패 시)
+     */
+    private void setDefaultValues(PetMate petMate, Long userId) {
+        petMate.setUserName("사용자" + userId);
+        petMate.setUserGender("미설정");
+        petMate.setPetName("미등록");
+        petMate.setPetBreed("미등록");
     }
 
     /**
