@@ -15,7 +15,7 @@ import java.util.List;
 
 @Slf4j
 @RestController
-@RequestMapping("/messages") // Gateway 설정에 따라 경로는 유동적 (/api/petmate/messages 등)
+@RequestMapping("/api/messages") // Gateway 설정에 따라 경로는 유동적 (/api/petmate/messages 등)
 @RequiredArgsConstructor
 public class MessageController {
 

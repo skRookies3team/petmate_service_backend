@@ -3,7 +3,7 @@ spring:
     import: "optional:file:.env[.properties]"
 
   application:
-    name: petlog
+    name: petmate-service
 
   # PostgreSQL 설정
   datasource:
@@ -14,12 +14,14 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      # [중요] create: 시작 시 기존 테이블 삭제 후 재생성 (데이터 초기화됨)
+      # update: 스키마만 변경 (데이터 유지)
+      ddl-auto: create
     show-sql: true
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     properties:
       hibernate:
-        format_sql: true # SQL 로그 예쁘게 출력
+        format_sql: true
 
   # MongoDB 설정
   data:
@@ -32,20 +34,24 @@ spring:
       client:
         config:
           default:
-            connectTimeout: 5000 # 연결 시도 제한 시간 (5초)
-            readTimeout: 5000    # 응답 대기 제한 시간 (5초)
+            connectTimeout: 5000
+            readTimeout: 5000
+          # Storage Service가 없을 때 에러 방지용
+          storage-service:
+            enabled: false
 
 server:
   port: 8089
-  servlet:
-    context-path: /api
+  # [삭제됨] server.servlet.context-path: /api
+  # 이유: Controller에 이미 /api가 붙어있어서 이중 경로(/api/api/...)로 인한 404 에러 방지
 
-# === 외부 서비스 URL 설정 (Default Profile) ===
+# === 외부 서비스 URL 설정 ===
+# Gateway(8000)를 바라보도록 설정
 external:
   user-service:
-    url: ${USER_SERVICE_URL:http://localhost:8080}
+    url: ${USER_SERVICE_URL:http://localhost:8000}
   pet-service:
-    url: ${PET_SERVICE_URL:http://localhost:8080}
+    url: ${PET_SERVICE_URL:http://localhost:8000}
   notification-service:
     url: ${NOTIFICATION_SERVICE_URL:http://localhost:8083}
   storage-service:
@@ -53,24 +59,11 @@ external:
 
 # Kakao API 설정
 kakao:
-  rest-api-key: ${KAKAO_REST_API_KEY:?KAKAO_REST_API_KEY is required}
+  rest-api-key: ${KAKAO_REST_API_KEY:YOUR_KAKAO_KEY}
 
----
-# local-test 프로필 설정 시작 (새로운 YAML 문서)
-spring:
-  config:
-    activate:
-      on-profile: local-test
-  cloud:
-    openfeign:
-      client:
-        config:
-          storage-service: # 특정 Feign Client 설정
-            enabled: false # [최종 해결책] Feign Client 빈 생성을 명시적으로 비활성화
-
-# Swagger 설정 (개발 환경 활성화)
+# Swagger 설정
 springdoc:
   api-docs:
-    path: "${SWAGGER_DOCS}"
+    path: /v3/api-docs
   swagger-ui:
-    path: "${SWAGGER_UI}"
+    path: /swagger-ui/index.html

@@ -12,17 +12,16 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        // Gateway(8000)를 통해 들어오므로, AllowedOrigins 패턴을 넓게 잡거나 Gateway 주소를 명시
         registry.addEndpoint("/ws-chat")
-                .setAllowedOriginPatterns("*")
-                .withSockJS(); // SockJS 지원
+                .setAllowedOriginPatterns("*") // 모든 출처 허용 (Gateway 통과 보장)
+                .withSockJS(); // SockJS 지원 활성화
     }
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        // 클라이언트가 구독(Subscribe)할 prefix (1:1 채팅방)
+        // 메시지 구독 요청 url -> /sub
         registry.enableSimpleBroker("/sub");
-        // 클라이언트가 메시지 보낼(Publish) prefix
+        // 메시지 발행 요청 url -> /pub
         registry.setApplicationDestinationPrefixes("/pub");
     }
 }

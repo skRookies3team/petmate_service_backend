@@ -15,10 +15,10 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
     @Query("SELECT c FROM ChatRoom c WHERE (c.user1Id = :userId1 AND c.user2Id = :userId2) OR (c.user1Id = :userId2 AND c.user2Id = :userId1)")
     Optional<ChatRoom> findByUsers(@Param("userId1") Long userId1, @Param("userId2") Long userId2);
 
-    @Query("SELECT c FROM ChatRoom c WHERE c.user1Id = :userId OR c.user2Id = :userId ORDER BY c.lastMessageAt DESC")
-    List<ChatRoom> findAllByUserId(@Param("userId") Long userId);
-
-    @Query("SELECT c FROM ChatRoom c WHERE (c.user1Id = :userId OR c.user2Id = :userId) AND c.isActive = true ORDER BY c.lastMessageAt DESC")
+    // [수정] NULL 안전 처리 (메시지가 없으면 생성시간 기준으로 정렬)
+    @Query("SELECT c FROM ChatRoom c " +
+            "WHERE (c.user1Id = :userId OR c.user2Id = :userId) " +
+            "ORDER BY COALESCE(c.lastMessageAt, c.createdAt) DESC")
     List<ChatRoom> findActiveByUserId(@Param("userId") Long userId);
 
     @Query("SELECT CASE WHEN COUNT(c) > 0 THEN true ELSE false END FROM ChatRoom c " +
