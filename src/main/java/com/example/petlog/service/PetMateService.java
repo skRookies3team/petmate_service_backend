@@ -473,4 +473,49 @@ public class PetMateService {
                 .alreadyLiked(false)
                 .build();
     }
+
+    /**
+     * 내가 보낸 PENDING 상태의 요청 목록 조회
+     */
+    public List<PendingRequestResponse> getSentRequests(Long userId) {
+        return petMateMatchRepository.findSentPendingRequests(userId).stream()
+                .map(match -> {
+                    PetMate receiver = petMateRepository.findFirstByUserIdOrderByIdAsc(match.getToUserId())
+                            .orElse(null);
+                    return PendingRequestResponse.builder()
+                            .matchId(match.getId())
+                            .fromUserId(match.getToUserId()) // 받는 사람 정보를 fromUserId에 담아 반환
+                            .fromUserName(receiver != null ? receiver.getUserName() : null)
+                            .fromUserAvatar(receiver != null ? receiver.getUserAvatar() : null)
+                            .petName(receiver != null ? receiver.getPetName() : null)
+                            .petPhoto(receiver != null ? receiver.getPetPhoto() : null)
+                            .petBreed(receiver != null ? receiver.getPetBreed() : null)
+                            .petAge(receiver != null ? receiver.getPetAge() : null)
+                            .location(receiver != null ? receiver.getLocation() : null)
+                            .createdAt(match.getCreatedAt())
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 친구 끊기 (매칭 삭제)
+     */
+    @Transactional
+    public boolean unfriend(Long userId, Long matchedUserId) {
+        // 양방향 매칭 레코드 모두 삭제
+        var match1 = petMateMatchRepository.findByFromUserIdAndToUserId(userId, matchedUserId);
+        var match2 = petMateMatchRepository.findByFromUserIdAndToUserId(matchedUserId, userId);
+
+        boolean deleted = false;
+        if (match1.isPresent()) {
+            petMateMatchRepository.delete(match1.get());
+            deleted = true;
+        }
+        if (match2.isPresent()) {
+            petMateMatchRepository.delete(match2.get());
+            deleted = true;
+        }
+        return deleted;
+    }
 }

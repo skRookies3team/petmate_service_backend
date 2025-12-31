@@ -135,4 +135,22 @@ public class PetMateController {
             @RequestBody RequestRespondRequest request) {
         return ResponseEntity.ok(petMateService.respondToRequest(matchId, request.getUserId(), request.getAccept()));
     }
+
+    /**
+     * 보낸 매칭 요청 목록 조회 (PENDING 상태)
+     */
+    @GetMapping("/requests/{userId}/sent")
+    public ResponseEntity<List<PendingRequestResponse>> getSentRequests(@PathVariable Long userId) {
+        return ResponseEntity.ok(petMateService.getSentRequests(userId));
+    }
+
+    /**
+     * 친구 끊기 (매칭 삭제)
+     */
+    @DeleteMapping("/matches/{userId}/{matchedUserId}")
+    public ResponseEntity<Boolean> unfriend(
+            @PathVariable Long userId,
+            @PathVariable Long matchedUserId) {
+        return ResponseEntity.ok(petMateService.unfriend(userId, matchedUserId));
+    }
 }

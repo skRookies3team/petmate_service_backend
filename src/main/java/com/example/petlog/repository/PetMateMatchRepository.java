@@ -31,4 +31,7 @@ public interface PetMateMatchRepository extends JpaRepository<PetMateMatch, Long
     Long countMatchesByUserId(@Param("userId") Long userId);
 
     List<PetMateMatch> findByFromUserId(Long fromUserId);
+
+    @Query("SELECT m FROM PetMateMatch m WHERE m.fromUserId = :userId AND m.status = 'PENDING'")
+    List<PetMateMatch> findSentPendingRequests(@Param("userId") Long userId);
 }
