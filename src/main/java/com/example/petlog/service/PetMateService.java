@@ -1,6 +1,6 @@
 package com.example.petlog.service;
 
-import com.example.petlog.client.NotificationServiceClient;
+import com.example.petlog.client.UserServiceClient;
 import com.example.petlog.dto.request.LikeRequest;
 import com.example.petlog.dto.request.PetMateFilterRequest;
 import com.example.petlog.dto.request.PetMateRequest;
@@ -8,6 +8,7 @@ import com.example.petlog.dto.response.ChatRoomResponse;
 import com.example.petlog.dto.response.MatchResponse;
 import com.example.petlog.dto.response.PendingRequestResponse;
 import com.example.petlog.dto.response.PetMateResponse;
+import com.example.petlog.dto.response.UserInfoResponse;
 import com.example.petlog.entity.PetMate;
 import com.example.petlog.entity.PetMateMatch;
 import com.example.petlog.repository.PetMateMatchRepository;
@@ -22,19 +23,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PetMateService {
 
     private final PetMateRepository petMateRepository;
     private final PetMateMatchRepository petMateMatchRepository;
     private final MessageService messageService;
-    private final NotificationServiceClient notificationServiceClient;
+    private final UserServiceClient userServiceClient;
 
-    /**
-     * 펫메이트 프로필 생성 또는 수정
-     */
     @Transactional
     public PetMateResponse createOrUpdateProfile(PetMateRequest request) {
         PetMate petMate = petMateRepository.findFirstByUserIdOrderByIdAsc(request.getUserId())
@@ -60,9 +58,6 @@ public class PetMateService {
         return convertToResponse(saved, null);
     }
 
-    /**
-     * 매칭 후보자 목록 조회 (필터링 및 거리 계산 포함)
-     */
     public List<PetMateResponse> getCandidates(Long userId, PetMateFilterRequest filter) {
         List<PetMate> candidates;
 
@@ -76,13 +71,8 @@ public class PetMateService {
             candidates = petMateRepository.findActivePetMatesExcludingUser(userId);
         }
 
-        // 이미 좋아요하거나 매칭된 유저는 제외
-        List<Long> interactedUserIds = petMateMatchRepository.findAllByUserId(userId).stream()
-                .map(m -> m.getFromUserId().equals(userId) ? m.getToUserId() : m.getFromUserId())
-                .collect(Collectors.toList());
-
+        // Apply filters
         return candidates.stream()
-                .filter(pm -> !interactedUserIds.contains(pm.getUserId())) // 이미 상호작용 한 유저 제외
                 .filter(pm -> filterByGender(pm, filter.getUserGender()))
                 .filter(pm -> filterByBreed(pm, filter.getPetBreed()))
                 .filter(pm -> filterByActivityLevel(pm, filter.getMinActivityLevel(), filter.getMaxActivityLevel()))
@@ -92,12 +82,9 @@ public class PetMateService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * 좋아요 (매칭 시도)
-     */
     @Transactional
     public MatchResponse like(LikeRequest request) {
-        // 이미 좋아요를 눌렀는지 확인
+        // Check if already liked
         if (petMateMatchRepository.existsByFromUserIdAndToUserId(request.getFromUserId(), request.getToUserId())) {
             return MatchResponse.builder()
                     .isMatched(false)
@@ -105,7 +92,7 @@ public class PetMateService {
                     .build();
         }
 
-        // 상대방도 나를 좋아요 했는지 확인 (매칭 여부 판단)
+        // Check if mutual like exists
         var mutualLike = petMateMatchRepository.findByFromUserIdAndToUserId(
                 request.getToUserId(), request.getFromUserId());
 
@@ -117,33 +104,27 @@ public class PetMateService {
         Long chatRoomId = null;
 
         if (mutualLike.isPresent()) {
-            // [매칭 성공!]
+            // It's a match!
             match.setStatus(PetMateMatch.MatchStatus.MATCHED);
             match.setMatchedAt(LocalDateTime.now());
 
-            // 상대방의 좋아요 상태도 MATCHED로 업데이트
+            // Update the other person's like to matched
             PetMateMatch otherMatch = mutualLike.get();
             otherMatch.setStatus(PetMateMatch.MatchStatus.MATCHED);
             otherMatch.setMatchedAt(LocalDateTime.now());
             petMateMatchRepository.save(otherMatch);
 
-            // 1. 채팅방 자동 생성
+            // Create chat room for the matched users
             ChatRoomResponse chatRoom = messageService.createOrGetChatRoom(
                     request.getFromUserId(), request.getToUserId());
             chatRoomId = chatRoom.getId();
-
-            // 2. 양쪽 유저에게 매칭 성공 알림 발송
-            sendMatchNotification(request.getFromUserId(), request.getToUserId());
-            sendMatchNotification(request.getToUserId(), request.getFromUserId());
-
         } else {
-            // [매칭 대기]
             match.setStatus(PetMateMatch.MatchStatus.PENDING);
         }
 
         petMateMatchRepository.save(match);
 
-        // 반환값 생성
+        // Get matched user info
         PetMate matchedPetMate = petMateRepository.findFirstByUserIdOrderByIdAsc(request.getToUserId()).orElse(null);
 
         return MatchResponse.builder()
@@ -160,9 +141,6 @@ public class PetMateService {
                 .build();
     }
 
-    /**
-     * 좋아요 취소 (PENDING 상태일 때만)
-     */
     @Transactional
     public boolean unlike(LikeRequest request) {
         var existingLike = petMateMatchRepository.findByFromUserIdAndToUserId(
@@ -170,6 +148,7 @@ public class PetMateService {
 
         if (existingLike.isPresent()) {
             PetMateMatch match = existingLike.get();
+            // Only allow cancellation of PENDING likes
             if (match.getStatus() == PetMateMatch.MatchStatus.PENDING) {
                 petMateMatchRepository.delete(match);
                 return true;
@@ -178,9 +157,6 @@ public class PetMateService {
         return false;
     }
 
-    /**
-     * 내가 좋아요를 보낸 사용자 ID 목록 조회 (PENDING 상태만)
-     */
     public List<Long> getLikedUserIds(Long userId) {
         return petMateMatchRepository.findByFromUserId(userId).stream()
                 .filter(m -> m.getStatus() == PetMateMatch.MatchStatus.PENDING)
@@ -188,9 +164,6 @@ public class PetMateService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * 매칭된 목록 조회 (서로 좋아요)
-     */
     public List<MatchResponse> getMatches(Long userId) {
         return petMateMatchRepository.findMatchedByUserId(userId).stream()
                 .map(match -> {
@@ -198,10 +171,6 @@ public class PetMateService {
                             ? match.getToUserId()
                             : match.getFromUserId();
                     PetMate petMate = petMateRepository.findFirstByUserIdOrderByIdAsc(matchedUserId).orElse(null);
-
-                    // 이미 채팅방이 존재할 것이므로 조회
-                    // (성능상 목록 조회시마다 호출하기 부담스러우면 null 처리 후 상세에서 조회하거나, 캐싱 필요)
-                    // 여기서는 단순화를 위해 ID 조회 로직 생략 또는 필요한 경우 추가
 
                     return MatchResponse.builder()
                             .matchId(match.getId())
@@ -217,105 +186,6 @@ public class PetMateService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * 받은 매칭 요청 목록 조회
-     */
-    public List<PendingRequestResponse> getPendingRequests(Long userId) {
-        return petMateMatchRepository.findPendingLikesForUser(userId).stream()
-                .map(match -> {
-                    PetMate sender = petMateRepository.findFirstByUserIdOrderByIdAsc(match.getFromUserId()).orElse(null);
-                    return PendingRequestResponse.builder()
-                            .matchId(match.getId())
-                            .fromUserId(match.getFromUserId())
-                            .fromUserName(sender != null ? sender.getUserName() : "알 수 없음")
-                            .fromUserAvatar(sender != null ? sender.getUserAvatar() : null)
-                            .petName(sender != null ? sender.getPetName() : null)
-                            .petPhoto(sender != null ? sender.getPetPhoto() : null)
-                            .matchScore(match.getMatchScore())
-                            .createdAt(match.getCreatedAt())
-                            .build();
-                })
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * 받은 매칭 요청 수 조회 (배지 알림용)
-     */
-    public Long getPendingRequestsCount(Long userId) {
-        return petMateMatchRepository.countPendingRequests(userId);
-    }
-
-    /**
-     * 매칭 요청 수락/거절 처리
-     */
-    @Transactional
-    public MatchResponse respondToRequest(Long matchId, Long userId, Boolean accept) {
-        PetMateMatch match = petMateMatchRepository.findById(matchId)
-                .orElseThrow(() -> new RuntimeException("매칭 요청을 찾을 수 없습니다."));
-
-        // 본인 확인 (요청 받은 사람이 맞는지)
-        if (!match.getToUserId().equals(userId)) {
-            throw new RuntimeException("권한이 없습니다.");
-        }
-
-        // 이미 처리된 요청인지 확인
-        if (match.getStatus() != PetMateMatch.MatchStatus.PENDING) {
-            throw new RuntimeException("이미 처리된 요청입니다.");
-        }
-
-        if (accept) {
-            // [수락]
-            // 1. 받은 요청(A->B) 상태를 MATCHED로 변경
-            match.setStatus(PetMateMatch.MatchStatus.MATCHED);
-            match.setMatchedAt(LocalDateTime.now());
-            petMateMatchRepository.save(match);
-
-            // 2. 반대 방향(B->A) 매칭 데이터 생성 및 MATCHED로 저장
-            PetMateMatch reverseMatch = PetMateMatch.builder()
-                    .fromUserId(userId)
-                    .toUserId(match.getFromUserId())
-                    .status(PetMateMatch.MatchStatus.MATCHED)
-                    .matchedAt(LocalDateTime.now())
-                    .matchScore(match.getMatchScore())
-                    .build();
-            petMateMatchRepository.save(reverseMatch);
-
-            // 3. 채팅방 생성
-            ChatRoomResponse chatRoom = messageService.createOrGetChatRoom(match.getFromUserId(), userId);
-
-            // 4. 알림 발송 (요청자에게 매칭 성공 알림)
-            sendMatchNotification(match.getFromUserId(), userId);
-
-            // 응답 생성
-            PetMate matchedUser = petMateRepository.findFirstByUserIdOrderByIdAsc(match.getFromUserId()).orElse(null);
-            return MatchResponse.builder()
-                    .matchId(match.getId())
-                    .matchedUserId(match.getFromUserId())
-                    .matchedUserName(matchedUser != null ? matchedUser.getUserName() : null)
-                    .matchedUserAvatar(matchedUser != null ? matchedUser.getUserAvatar() : null)
-                    .petName(matchedUser != null ? matchedUser.getPetName() : null)
-                    .petPhoto(matchedUser != null ? matchedUser.getPetPhoto() : null)
-                    .isMatched(true)
-                    .matchedAt(LocalDateTime.now())
-                    .chatRoomId(chatRoom.getId())
-                    .alreadyLiked(false)
-                    .build();
-
-        } else {
-            // [거절]
-            // 요청 데이터 삭제 (또는 REJECTED 상태로 변경)
-            petMateMatchRepository.delete(match);
-
-            return MatchResponse.builder()
-                    .isMatched(false)
-                    .alreadyLiked(false)
-                    .build();
-        }
-    }
-
-    /**
-     * 온라인 상태 업데이트
-     */
     @Transactional
     public void updateOnlineStatus(Long userId, boolean isOnline) {
         petMateRepository.findFirstByUserIdOrderByIdAsc(userId).ifPresent(petMate -> {
@@ -326,22 +196,13 @@ public class PetMateService {
     }
 
     /**
-     * 사용자 위치 정보 업데이트
+     * 사용자 위치 정보만 업데이트 (경량 API)
+     * 레코드가 없으면 user-service에서 실제 사용자 정보를 가져와서 새로 생성
      */
     @Transactional
     public boolean updateLocation(Long userId, Double latitude, Double longitude, String location) {
         PetMate petMate = petMateRepository.findFirstByUserIdOrderByIdAsc(userId)
-                .orElseGet(() -> {
-                    PetMate newPetMate = new PetMate();
-                    newPetMate.setUserId(userId);
-                    newPetMate.setUserName("사용자" + userId);
-                    newPetMate.setUserGender("미설정");
-                    newPetMate.setPetName("미등록");
-                    newPetMate.setPetBreed("미등록");
-                    newPetMate.setIsOnline(true);
-                    newPetMate.setIsActive(true);
-                    return newPetMate;
-                });
+                .orElseGet(() -> createPetMateFromUserService(userId));
 
         petMate.setLatitude(latitude);
         petMate.setLongitude(longitude);
@@ -350,6 +211,82 @@ public class PetMateService {
         }
         petMateRepository.save(petMate);
         return true;
+    }
+
+    /**
+     * user-service에서 실제 사용자 정보를 가져와 PetMate 프로필 생성
+     */
+    private PetMate createPetMateFromUserService(Long userId) {
+        PetMate newPetMate = new PetMate();
+        newPetMate.setUserId(userId);
+        newPetMate.setIsOnline(true);
+        newPetMate.setIsActive(true);
+
+        try {
+            // user-service에서 실제 사용자 정보 가져오기
+            UserInfoResponse userInfo = userServiceClient.getUserInfo(userId);
+
+            if (userInfo != null) {
+                // 사용자 정보 설정
+                newPetMate.setUserName(userInfo.getUsername() != null ? userInfo.getUsername() : "사용자" + userId);
+                newPetMate.setUserAvatar(userInfo.getProfileImage());
+
+                // 성별 매핑 (MALE -> 남성, FEMALE -> 여성)
+                if (userInfo.getGenderType() != null) {
+                    String gender = switch (userInfo.getGenderType().toUpperCase()) {
+                        case "MALE", "M" -> "남성";
+                        case "FEMALE", "F" -> "여성";
+                        default -> "미설정";
+                    };
+                    newPetMate.setUserGender(gender);
+                } else {
+                    newPetMate.setUserGender("미설정");
+                }
+
+                // 첫 번째 펫 정보 설정 (있는 경우)
+                if (userInfo.getPets() != null && !userInfo.getPets().isEmpty()) {
+                    UserInfoResponse.PetInfo firstPet = userInfo.getPets().get(0);
+                    newPetMate.setPetName(firstPet.getPetName() != null ? firstPet.getPetName() : "미등록");
+                    newPetMate.setPetBreed(firstPet.getBreed() != null ? firstPet.getBreed() : "미등록");
+                    newPetMate.setPetPhoto(firstPet.getProfileImage());
+                    newPetMate.setPetAge(firstPet.getAge());
+
+                    // 펫 성별 매핑
+                    if (firstPet.getGenderType() != null) {
+                        String petGender = switch (firstPet.getGenderType().toUpperCase()) {
+                            case "MALE", "M" -> "남아";
+                            case "FEMALE", "F" -> "여아";
+                            default -> null;
+                        };
+                        newPetMate.setPetGender(petGender);
+                    }
+                } else {
+                    newPetMate.setPetName("미등록");
+                    newPetMate.setPetBreed("미등록");
+                }
+
+                log.info("Successfully fetched user info from user-service for userId: {}", userId);
+            } else {
+                setDefaultValues(newPetMate, userId);
+            }
+        } catch (Exception e) {
+            // user-service 호출 실패 시 기본값으로 설정
+            log.warn("Failed to fetch user info from user-service for userId: {}. Using default values. Error: {}",
+                    userId, e.getMessage());
+            setDefaultValues(newPetMate, userId);
+        }
+
+        return newPetMate;
+    }
+
+    /**
+     * 기본값 설정 (user-service 연동 실패 시)
+     */
+    private void setDefaultValues(PetMate petMate, Long userId) {
+        petMate.setUserName("사용자" + userId);
+        petMate.setUserGender("미설정");
+        petMate.setPetName("미등록");
+        petMate.setPetBreed("미등록");
     }
 
     /**
@@ -364,27 +301,6 @@ public class PetMateService {
                         .location(pm.getLocation())
                         .build())
                 .orElse(null);
-    }
-
-    // --- Private Helper Methods ---
-
-    /**
-     * 매칭 성공 알림 발송
-     */
-    private void sendMatchNotification(Long receiverId, Long senderId) {
-        try {
-            PetMate sender = petMateRepository.findFirstByUserIdOrderByIdAsc(senderId).orElse(null);
-            String senderName = (sender != null) ? sender.getUserName() : "알 수 없는 사용자";
-
-            notificationServiceClient.sendNotification(new NotificationServiceClient.NotificationRequest(
-                    receiverId,
-                    "🎉 펫메이트 매칭 성공!",
-                    senderName + "님과 매칭되었습니다. 지금 채팅을 시작해보세요!",
-                    "MATCH"
-            ));
-        } catch (Exception e) {
-            log.error("매칭 알림 발송 실패: receiverId={}, error={}", receiverId, e.getMessage());
-        }
     }
 
     private boolean filterByGender(PetMate pm, String gender) {
@@ -443,10 +359,8 @@ public class PetMateService {
                 .bio(petMate.getBio())
                 .activityLevel(petMate.getActivityLevel())
                 .distance(distance)
-                .latitude(petMate.getLatitude())
-                .longitude(petMate.getLongitude())
                 .location(petMate.getLocation())
-                .commonInterests(new ArrayList<>())
+                .commonInterests(new ArrayList<>()) // TODO: Implement interests
                 .matchScore(calculateMatchScore(petMate))
                 .isOnline(petMate.getIsOnline())
                 .lastActiveAt(petMate.getLastActiveAt())
@@ -454,6 +368,154 @@ public class PetMateService {
     }
 
     private Integer calculateMatchScore(PetMate petMate) {
-        return (int) (Math.random() * 30 + 70);
+        // Simple match score calculation - can be enhanced
+        return (int) (Math.random() * 30 + 70); // Random 70-100 for now
+    }
+
+    /**
+     * 나에게 온 매칭 요청 목록 조회 (PENDING 상태)
+     */
+    public List<PendingRequestResponse> getPendingRequests(Long userId) {
+        return petMateMatchRepository.findPendingLikesForUser(userId).stream()
+                .map(match -> {
+                    PetMate requester = petMateRepository.findFirstByUserIdOrderByIdAsc(match.getFromUserId())
+                            .orElse(null);
+                    return PendingRequestResponse.builder()
+                            .matchId(match.getId())
+                            .fromUserId(match.getFromUserId())
+                            .fromUserName(requester != null ? requester.getUserName() : null)
+                            .fromUserAvatar(requester != null ? requester.getUserAvatar() : null)
+                            .petName(requester != null ? requester.getPetName() : null)
+                            .petPhoto(requester != null ? requester.getPetPhoto() : null)
+                            .petBreed(requester != null ? requester.getPetBreed() : null)
+                            .petAge(requester != null ? requester.getPetAge() : null)
+                            .location(requester != null ? requester.getLocation() : null)
+                            .createdAt(match.getCreatedAt())
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 나에게 온 매칭 요청 수 조회 (배지용)
+     */
+    public Long getPendingRequestsCount(Long userId) {
+        return (long) petMateMatchRepository.findPendingLikesForUser(userId).size();
+    }
+
+    /**
+     * 매칭 요청 수락/거절
+     */
+    @Transactional
+    public MatchResponse respondToRequest(Long matchId, Long userId, boolean accept) {
+        PetMateMatch match = petMateMatchRepository.findById(matchId)
+                .orElseThrow(() -> new IllegalArgumentException("요청을 찾을 수 없습니다: " + matchId));
+
+        // 요청 받은 사람만 응답 가능
+        if (!match.getToUserId().equals(userId)) {
+            throw new IllegalArgumentException("이 요청에 응답할 권한이 없습니다.");
+        }
+
+        // 이미 처리된 요청인지 확인
+        if (match.getStatus() != PetMateMatch.MatchStatus.PENDING) {
+            return MatchResponse.builder()
+                    .matchId(matchId)
+                    .isMatched(match.getStatus() == PetMateMatch.MatchStatus.MATCHED)
+                    .alreadyLiked(true)
+                    .build();
+        }
+
+        Long chatRoomId = null;
+        PetMate requesterPetMate = petMateRepository.findFirstByUserIdOrderByIdAsc(match.getFromUserId()).orElse(null);
+
+        if (accept) {
+            // 수락: MATCHED 상태로 변경
+            match.setStatus(PetMateMatch.MatchStatus.MATCHED);
+            match.setMatchedAt(LocalDateTime.now());
+
+            // 상대방(요청 보낸 사람)의 레코드도 생성 (아직 없다면)
+            var reverseMatch = petMateMatchRepository.findByFromUserIdAndToUserId(userId, match.getFromUserId());
+            if (reverseMatch.isEmpty()) {
+                PetMateMatch newMatch = PetMateMatch.builder()
+                        .fromUserId(userId)
+                        .toUserId(match.getFromUserId())
+                        .status(PetMateMatch.MatchStatus.MATCHED)
+                        .matchedAt(LocalDateTime.now())
+                        .build();
+                petMateMatchRepository.save(newMatch);
+            } else {
+                PetMateMatch existingMatch = reverseMatch.get();
+                existingMatch.setStatus(PetMateMatch.MatchStatus.MATCHED);
+                existingMatch.setMatchedAt(LocalDateTime.now());
+                petMateMatchRepository.save(existingMatch);
+            }
+
+            // 채팅방 생성
+            ChatRoomResponse chatRoom = messageService.createOrGetChatRoom(userId, match.getFromUserId());
+            chatRoomId = chatRoom.getId();
+        } else {
+            // 거절: REJECTED 상태로 변경
+            match.setStatus(PetMateMatch.MatchStatus.REJECTED);
+        }
+
+        petMateMatchRepository.save(match);
+
+        return MatchResponse.builder()
+                .matchId(matchId)
+                .matchedUserId(match.getFromUserId())
+                .matchedUserName(requesterPetMate != null ? requesterPetMate.getUserName() : null)
+                .matchedUserAvatar(requesterPetMate != null ? requesterPetMate.getUserAvatar() : null)
+                .petName(requesterPetMate != null ? requesterPetMate.getPetName() : null)
+                .petPhoto(requesterPetMate != null ? requesterPetMate.getPetPhoto() : null)
+                .isMatched(accept)
+                .matchedAt(accept ? LocalDateTime.now() : null)
+                .chatRoomId(chatRoomId)
+                .alreadyLiked(false)
+                .build();
+    }
+
+    /**
+     * 내가 보낸 PENDING 상태의 요청 목록 조회
+     */
+    public List<PendingRequestResponse> getSentRequests(Long userId) {
+        return petMateMatchRepository.findSentPendingRequests(userId).stream()
+                .map(match -> {
+                    PetMate receiver = petMateRepository.findFirstByUserIdOrderByIdAsc(match.getToUserId())
+                            .orElse(null);
+                    return PendingRequestResponse.builder()
+                            .matchId(match.getId())
+                            .fromUserId(match.getToUserId()) // 받는 사람 정보를 fromUserId에 담아 반환
+                            .fromUserName(receiver != null ? receiver.getUserName() : null)
+                            .fromUserAvatar(receiver != null ? receiver.getUserAvatar() : null)
+                            .petName(receiver != null ? receiver.getPetName() : null)
+                            .petPhoto(receiver != null ? receiver.getPetPhoto() : null)
+                            .petBreed(receiver != null ? receiver.getPetBreed() : null)
+                            .petAge(receiver != null ? receiver.getPetAge() : null)
+                            .location(receiver != null ? receiver.getLocation() : null)
+                            .createdAt(match.getCreatedAt())
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 친구 끊기 (매칭 삭제)
+     */
+    @Transactional
+    public boolean unfriend(Long userId, Long matchedUserId) {
+        // 양방향 매칭 레코드 모두 삭제
+        var match1 = petMateMatchRepository.findByFromUserIdAndToUserId(userId, matchedUserId);
+        var match2 = petMateMatchRepository.findByFromUserIdAndToUserId(matchedUserId, userId);
+
+        boolean deleted = false;
+        if (match1.isPresent()) {
+            petMateMatchRepository.delete(match1.get());
+            deleted = true;
+        }
+        if (match2.isPresent()) {
+            petMateMatchRepository.delete(match2.get());
+            deleted = true;
+        }
+        return deleted;
     }
 }
