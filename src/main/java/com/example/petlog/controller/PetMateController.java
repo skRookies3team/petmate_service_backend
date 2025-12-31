@@ -3,7 +3,9 @@ package com.example.petlog.controller;
 import com.example.petlog.dto.request.LikeRequest;
 import com.example.petlog.dto.request.PetMateFilterRequest;
 import com.example.petlog.dto.request.PetMateRequest;
+import com.example.petlog.dto.request.RequestRespondRequest;
 import com.example.petlog.dto.response.MatchResponse;
+import com.example.petlog.dto.response.PendingRequestResponse;
 import com.example.petlog.dto.response.PetMateResponse;
 import com.example.petlog.service.PetMateService;
 import lombok.RequiredArgsConstructor;
@@ -106,5 +108,31 @@ public class PetMateController {
             return ResponseEntity.ok(location);
         }
         return ResponseEntity.notFound().build();
+    }
+
+    /**
+     * 받은 매칭 요청 목록 조회
+     */
+    @GetMapping("/requests/{userId}")
+    public ResponseEntity<List<PendingRequestResponse>> getPendingRequests(@PathVariable Long userId) {
+        return ResponseEntity.ok(petMateService.getPendingRequests(userId));
+    }
+
+    /**
+     * 받은 매칭 요청 수 조회 (배지용)
+     */
+    @GetMapping("/requests/{userId}/count")
+    public ResponseEntity<Long> getPendingRequestsCount(@PathVariable Long userId) {
+        return ResponseEntity.ok(petMateService.getPendingRequestsCount(userId));
+    }
+
+    /**
+     * 매칭 요청 수락/거절
+     */
+    @PostMapping("/requests/{matchId}/respond")
+    public ResponseEntity<MatchResponse> respondToRequest(
+            @PathVariable Long matchId,
+            @RequestBody RequestRespondRequest request) {
+        return ResponseEntity.ok(petMateService.respondToRequest(matchId, request.getUserId(), request.getAccept()));
     }
 }
