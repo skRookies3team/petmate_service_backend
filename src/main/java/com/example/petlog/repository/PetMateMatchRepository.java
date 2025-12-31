@@ -20,6 +20,7 @@ public interface PetMateMatchRepository extends JpaRepository<PetMateMatch, Long
     @Query("SELECT m FROM PetMateMatch m WHERE (m.fromUserId = :userId OR m.toUserId = :userId) AND m.status = 'MATCHED'")
     List<PetMateMatch> findMatchedByUserId(@Param("userId") Long userId);
 
+    // [중요] 나에게 온 대기 중인 요청 조회
     @Query("SELECT m FROM PetMateMatch m WHERE m.toUserId = :userId AND m.status = 'PENDING'")
     List<PetMateMatch> findPendingLikesForUser(@Param("userId") Long userId);
 
@@ -27,8 +28,9 @@ public interface PetMateMatchRepository extends JpaRepository<PetMateMatch, Long
             "WHERE m.fromUserId = :fromUserId AND m.toUserId = :toUserId")
     boolean existsByFromUserIdAndToUserId(@Param("fromUserId") Long fromUserId, @Param("toUserId") Long toUserId);
 
-    @Query("SELECT COUNT(m) FROM PetMateMatch m WHERE (m.fromUserId = :userId OR m.toUserId = :userId) AND m.status = 'MATCHED'")
-    Long countMatchesByUserId(@Param("userId") Long userId);
+    // [추가] 대기 중인 요청 수 카운트 (배지 알림용)
+    @Query("SELECT COUNT(m) FROM PetMateMatch m WHERE m.toUserId = :userId AND m.status = 'PENDING'")
+    Long countPendingRequests(@Param("userId") Long userId);
 
     List<PetMateMatch> findByFromUserId(Long fromUserId);
 }

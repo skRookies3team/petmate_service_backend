@@ -28,14 +28,12 @@ public class Message {
     private String content;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private MessageType messageType;
+    @Builder.Default
+    private MessageType messageType = MessageType.TEXT;
 
     @Column(nullable = false)
     @Builder.Default
     private Boolean isRead = false;
-
-    private LocalDateTime readAt;
 
     private LocalDateTime createdAt;
 
@@ -45,8 +43,6 @@ public class Message {
     }
 
     public enum MessageType {
-        TEXT,
-        IMAGE,
-        EMOJI
+        TEXT, IMAGE, EMOJI
     }
 }

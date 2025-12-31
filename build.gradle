@@ -55,6 +55,9 @@ dependencies {
     // 로드밸런서 (Feign Client 사용 시 필수)
     implementation 'org.springframework.cloud:spring-cloud-starter-loadbalancer'
 
+    // websocket
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
+
 
     compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'

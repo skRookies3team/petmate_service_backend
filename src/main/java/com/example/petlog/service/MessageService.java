@@ -10,7 +10,6 @@ import com.example.petlog.repository.ChatRoomRepository;
 import com.example.petlog.repository.MessageRepository;
 import com.example.petlog.repository.PetMateRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,110 +25,97 @@ public class MessageService {
     private final MessageRepository messageRepository;
     private final PetMateRepository petMateRepository;
 
+    // 1:1 채팅방 생성 또는 조회 (매칭 시 호출됨)
     @Transactional
     public ChatRoomResponse createOrGetChatRoom(Long userId1, Long userId2) {
         ChatRoom chatRoom = chatRoomRepository.findByUsers(userId1, userId2)
-                .orElseGet(() -> {
-                    ChatRoom newRoom = ChatRoom.builder()
-                            .user1Id(userId1)
-                            .user2Id(userId2)
-                            .isActive(true)
-                            .build();
-                    return chatRoomRepository.save(newRoom);
-                });
+                .orElseGet(() -> chatRoomRepository.save(ChatRoom.builder()
+                        .user1Id(userId1)
+                        .user2Id(userId2)
+                        .isActive(true)
+                        .lastMessage("새로운 매칭이 시작되었습니다! 👋")
+                        .lastMessageAt(LocalDateTime.now())
+                        .build()));
 
         return convertToChatRoomResponse(chatRoom, userId1);
     }
 
-    public List<ChatRoomResponse> getChatRooms(Long userId) {
-        return chatRoomRepository.findActiveByUserId(userId).stream()
-                .map(room -> convertToChatRoomResponse(room, userId))
-                .collect(Collectors.toList());
-    }
-
-    public List<MessageResponse> getMessages(Long chatRoomId, Long userId) {
-        return messageRepository.findByChatRoomIdOrderByCreatedAtAsc(chatRoomId).stream()
-                .map(msg -> convertToMessageResponse(msg, userId))
-                .collect(Collectors.toList());
-    }
-
-    public List<MessageResponse> getRecentMessages(Long chatRoomId, Long userId, int limit) {
-        return messageRepository.findByChatRoomIdOrderByCreatedAtDesc(chatRoomId, PageRequest.of(0, limit))
-                .getContent()
-                .stream()
-                .map(msg -> convertToMessageResponse(msg, userId))
-                .collect(Collectors.toList());
-    }
-
+    // 메시지 저장 (DB 저장 후 리턴)
     @Transactional
-    public MessageResponse sendMessage(MessageRequest request) {
+    public MessageResponse saveMessage(MessageRequest request) {
         ChatRoom chatRoom = chatRoomRepository.findById(request.getChatRoomId())
-                .orElseThrow(() -> new RuntimeException("Chat room not found"));
+                .orElseThrow(() -> new RuntimeException("채팅방을 찾을 수 없습니다."));
 
         Message message = Message.builder()
                 .chatRoom(chatRoom)
                 .senderId(request.getSenderId())
                 .content(request.getContent())
-                .messageType(Message.MessageType.valueOf(
-                        request.getMessageType() != null ? request.getMessageType() : "TEXT"))
+                .messageType(Message.MessageType.valueOf(request.getMessageType() != null ? request.getMessageType() : "TEXT"))
                 .isRead(false)
                 .build();
 
         Message saved = messageRepository.save(message);
 
-        // Update chat room's last message
+        // 채팅방의 마지막 메시지 업데이트
         chatRoom.setLastMessage(request.getContent());
         chatRoom.setLastMessageAt(LocalDateTime.now());
         chatRoomRepository.save(chatRoom);
 
-        return convertToMessageResponse(saved, request.getSenderId());
+        return convertToMessageResponse(saved);
     }
 
+    // 내 채팅방 목록 조회
+    @Transactional(readOnly = true)
+    public List<ChatRoomResponse> getMyChatRooms(Long userId) {
+        return chatRoomRepository.findActiveByUserId(userId).stream()
+                .map(room -> convertToChatRoomResponse(room, userId))
+                .collect(Collectors.toList());
+    }
+
+    // 특정 채팅방의 메시지 내역 조회
+    @Transactional(readOnly = true)
+    public List<MessageResponse> getMessages(Long chatRoomId, Long userId) {
+        // (선택) 여기서 읽음 처리 로직을 호출하거나, 별도 API로 분리할 수 있음
+        return messageRepository.findByChatRoomIdOrderByCreatedAtAsc(chatRoomId).stream()
+                .map(this::convertToMessageResponse)
+                .collect(Collectors.toList());
+    }
+
+    // 메시지 읽음 처리
     @Transactional
-    public void markMessagesAsRead(Long chatRoomId, Long userId) {
+    public void markAsRead(Long chatRoomId, Long userId) {
         messageRepository.markAsRead(chatRoomId, userId);
     }
 
-    public Long getUnreadCount(Long chatRoomId, Long userId) {
-        return messageRepository.countUnreadMessages(chatRoomId, userId);
-    }
-
-    public Long getTotalUnreadCount(Long userId) {
-        return chatRoomRepository.findActiveByUserId(userId).stream()
-                .mapToLong(room -> messageRepository.countUnreadMessages(room.getId(), userId))
-                .sum();
-    }
-
-    private ChatRoomResponse convertToChatRoomResponse(ChatRoom room, Long currentUserId) {
-        Long otherUserId = room.getUser1Id().equals(currentUserId) ? room.getUser2Id() : room.getUser1Id();
-        PetMate otherUser = petMateRepository.findFirstByUserIdOrderByIdAsc(otherUserId).orElse(null);
+    // DTO 변환 메서드 (채팅방)
+    private ChatRoomResponse convertToChatRoomResponse(ChatRoom room, Long myId) {
+        Long otherId = room.getUser1Id().equals(myId) ? room.getUser2Id() : room.getUser1Id();
+        PetMate otherUser = petMateRepository.findFirstByUserIdOrderByIdAsc(otherId).orElse(null);
 
         return ChatRoomResponse.builder()
                 .id(room.getId())
-                .otherUserId(otherUserId)
+                .otherUserId(otherId)
                 .otherUserName(otherUser != null ? otherUser.getUserName() : "Unknown")
                 .otherUserAvatar(otherUser != null ? otherUser.getUserAvatar() : null)
-                .petName(otherUser != null ? otherUser.getPetName() : null)
-                .petPhoto(otherUser != null ? otherUser.getPetPhoto() : null)
                 .lastMessage(room.getLastMessage())
                 .lastMessageAt(room.getLastMessageAt())
-                .unreadCount(messageRepository.countUnreadMessages(room.getId(), currentUserId))
+                .unreadCount(messageRepository.countUnreadMessages(room.getId(), myId))
                 .build();
     }
 
-    private MessageResponse convertToMessageResponse(Message message, Long currentUserId) {
-        PetMate sender = petMateRepository.findFirstByUserIdOrderByIdAsc(message.getSenderId()).orElse(null);
-
+    // DTO 변환 메서드 (메시지)
+    private MessageResponse convertToMessageResponse(Message msg) {
+        PetMate sender = petMateRepository.findFirstByUserIdOrderByIdAsc(msg.getSenderId()).orElse(null);
         return MessageResponse.builder()
-                .id(message.getId())
-                .chatRoomId(message.getChatRoom().getId())
-                .senderId(message.getSenderId())
+                .id(msg.getId())
+                .chatRoomId(msg.getChatRoom().getId())
+                .senderId(msg.getSenderId())
                 .senderName(sender != null ? sender.getUserName() : "Unknown")
                 .senderAvatar(sender != null ? sender.getUserAvatar() : null)
-                .content(message.getContent())
-                .messageType(message.getMessageType().name())
-                .isRead(message.getIsRead())
-                .createdAt(message.getCreatedAt())
+                .content(msg.getContent())
+                .messageType(msg.getMessageType().name())
+                .isRead(msg.getIsRead())
+                .createdAt(msg.getCreatedAt())
                 .build();
     }
 }

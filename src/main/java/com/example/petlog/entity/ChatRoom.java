@@ -3,8 +3,6 @@ package com.example.petlog.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Entity
 @Table(name = "chat_rooms")
@@ -31,24 +29,13 @@ public class ChatRoom {
 
     @Column(nullable = false)
     @Builder.Default
-    private Boolean isActive = true;
+    private Boolean isActive = true; // 매칭 시 true, 차단/나가기 시 false
 
     private LocalDateTime createdAt;
-
-    private LocalDateTime updatedAt;
-
-    @OneToMany(mappedBy = "chatRoom", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    private List<Message> messages = new ArrayList<>();
 
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
+        lastMessageAt = LocalDateTime.now();
     }
 }

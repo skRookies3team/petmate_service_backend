@@ -8,9 +8,8 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class MessageRequest {
-
     private Long chatRoomId;
     private Long senderId;
     private String content;
-    private String messageType; // TEXT, IMAGE, EMOJI
+    private String messageType; // TEXT, IMAGE
 }

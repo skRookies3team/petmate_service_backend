@@ -12,16 +12,11 @@ import java.util.Optional;
 @Repository
 public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
 
-    @Query("SELECT c FROM ChatRoom c WHERE (c.user1Id = :userId1 AND c.user2Id = :userId2) OR (c.user1Id = :userId2 AND c.user2Id = :userId1)")
-    Optional<ChatRoom> findByUsers(@Param("userId1") Long userId1, @Param("userId2") Long userId2);
+    // 두 유저 간의 채팅방 찾기
+    @Query("SELECT c FROM ChatRoom c WHERE (c.user1Id = :u1 AND c.user2Id = :u2) OR (c.user1Id = :u2 AND c.user2Id = :u1)")
+    Optional<ChatRoom> findByUsers(@Param("u1") Long user1Id, @Param("u2") Long user2Id);
 
-    @Query("SELECT c FROM ChatRoom c WHERE c.user1Id = :userId OR c.user2Id = :userId ORDER BY c.lastMessageAt DESC")
-    List<ChatRoom> findAllByUserId(@Param("userId") Long userId);
-
+    // 내 채팅방 목록 조회 (활성 상태인 것만, 최근 메시지 순)
     @Query("SELECT c FROM ChatRoom c WHERE (c.user1Id = :userId OR c.user2Id = :userId) AND c.isActive = true ORDER BY c.lastMessageAt DESC")
     List<ChatRoom> findActiveByUserId(@Param("userId") Long userId);
-
-    @Query("SELECT CASE WHEN COUNT(c) > 0 THEN true ELSE false END FROM ChatRoom c " +
-            "WHERE (c.user1Id = :userId1 AND c.user2Id = :userId2) OR (c.user1Id = :userId2 AND c.user2Id = :userId1)")
-    boolean existsByUsers(@Param("userId1") Long userId1, @Param("userId2") Long userId2);
 }

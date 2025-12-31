@@ -6,10 +6,7 @@ import lombok.*;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class RequestRespondRequest {
-
-    private Long matchId;
-    private Long userId;
-    private Boolean accept;
+    private Long userId;   // 응답하는 사용자 ID (로그인한 사용자)
+    private Boolean accept; // true: 수락, false: 거절
 }
