@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/messages")
+@RequestMapping("/api/petmate/messages")
 @RequiredArgsConstructor
 public class MessageController {
 

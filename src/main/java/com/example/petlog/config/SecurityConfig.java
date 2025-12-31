@@ -45,14 +45,14 @@ public class SecurityConfig {
                                                                 "/swagger-ui.html")
                                                 .permitAll()
 
+                                                .requestMatchers("/ws-chat/**").permitAll() // WebSocket 허용 필수
+
                                                 // PetMate & Message API 허용
                                                 .requestMatchers(
                                                                 "/petmate/**",
                                                                 "/messages/**",
                                                                 "/geocoding/**")
                                                 .permitAll()
-
-                                                .requestMatchers("/ws-chat/**").permitAll()
 
                                                 // 개발 초기 : 아래처럼 다 열어두고 시작
                                                 // .anyRequest().authenticated() // (개발 후: 나머지는 인증 필요)
