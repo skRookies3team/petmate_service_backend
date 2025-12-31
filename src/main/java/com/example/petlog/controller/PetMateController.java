@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/petmate") // [수정] API 컨벤션에 맞춰 /api 프리픽스 유지
+@RequestMapping("/petmate")
 @RequiredArgsConstructor
 public class PetMateController {
 
@@ -51,7 +51,7 @@ public class PetMateController {
     }
 
     /**
-     * 매칭된 목록 조회 (서로 좋아요)
+     * 매칭된 목록 조회
      */
     @GetMapping("/matches/{userId}")
     public ResponseEntity<List<MatchResponse>> getMatches(@PathVariable Long userId) {
@@ -72,32 +72,6 @@ public class PetMateController {
     @GetMapping("/liked/{userId}")
     public ResponseEntity<List<Long>> getLikedUserIds(@PathVariable Long userId) {
         return ResponseEntity.ok(petMateService.getLikedUserIds(userId));
-    }
-
-    /**
-     * 받은 매칭 요청 목록 조회
-     */
-    @GetMapping("/requests/{userId}")
-    public ResponseEntity<List<PendingRequestResponse>> getPendingRequests(@PathVariable Long userId) {
-        return ResponseEntity.ok(petMateService.getPendingRequests(userId));
-    }
-
-    /**
-     * 받은 매칭 요청 수 조회 (배지 알림용)
-     */
-    @GetMapping("/requests/{userId}/count")
-    public ResponseEntity<Long> getPendingRequestsCount(@PathVariable Long userId) {
-        return ResponseEntity.ok(petMateService.getPendingRequestsCount(userId));
-    }
-
-    /**
-     * 매칭 요청 수락/거절
-     */
-    @PostMapping("/requests/{matchId}/respond")
-    public ResponseEntity<MatchResponse> respondToRequest(
-            @PathVariable Long matchId,
-            @RequestBody RequestRespondRequest request) {
-        return ResponseEntity.ok(petMateService.respondToRequest(matchId, request.getUserId(), request.getAccept()));
     }
 
     /**
@@ -134,5 +108,49 @@ public class PetMateController {
             return ResponseEntity.ok(location);
         }
         return ResponseEntity.notFound().build();
+    }
+
+    /**
+     * 받은 매칭 요청 목록 조회
+     */
+    @GetMapping("/requests/{userId}")
+    public ResponseEntity<List<PendingRequestResponse>> getPendingRequests(@PathVariable Long userId) {
+        return ResponseEntity.ok(petMateService.getPendingRequests(userId));
+    }
+
+    /**
+     * 받은 매칭 요청 수 조회 (배지용)
+     */
+    @GetMapping("/requests/{userId}/count")
+    public ResponseEntity<Long> getPendingRequestsCount(@PathVariable Long userId) {
+        return ResponseEntity.ok(petMateService.getPendingRequestsCount(userId));
+    }
+
+    /**
+     * 매칭 요청 수락/거절
+     */
+    @PostMapping("/requests/{matchId}/respond")
+    public ResponseEntity<MatchResponse> respondToRequest(
+            @PathVariable Long matchId,
+            @RequestBody RequestRespondRequest request) {
+        return ResponseEntity.ok(petMateService.respondToRequest(matchId, request.getUserId(), request.getAccept()));
+    }
+
+    /**
+     * 보낸 매칭 요청 목록 조회 (PENDING 상태)
+     */
+    @GetMapping("/requests/{userId}/sent")
+    public ResponseEntity<List<PendingRequestResponse>> getSentRequests(@PathVariable Long userId) {
+        return ResponseEntity.ok(petMateService.getSentRequests(userId));
+    }
+
+    /**
+     * 친구 끊기 (매칭 삭제)
+     */
+    @DeleteMapping("/matches/{userId}/{matchedUserId}")
+    public ResponseEntity<Boolean> unfriend(
+            @PathVariable Long userId,
+            @PathVariable Long matchedUserId) {
+        return ResponseEntity.ok(petMateService.unfriend(userId, matchedUserId));
     }
 }
