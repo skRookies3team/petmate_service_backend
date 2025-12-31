@@ -2,15 +2,19 @@ package com.example.petlog.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "messages")
 @Getter
 @Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@EntityListeners(AuditingEntityListener.class)
+@Table(name = "message")
 public class Message {
 
     @Id
@@ -24,29 +28,25 @@ public class Message {
     @Column(nullable = false)
     private Long senderId;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
+    @Column(columnDefinition = "TEXT")
     private String content;
 
+    // 텍스트, 이미지, 시스템 메시지 등을 구분
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private MessageType messageType;
+    @Builder.Default
+    private MessageType messageType = MessageType.TEXT;
 
     @Column(nullable = false)
     @Builder.Default
     private Boolean isRead = false;
 
-    private LocalDateTime readAt;
-
+    @CreatedDate
+    @Column(updatable = false)
     private LocalDateTime createdAt;
 
-    @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-    }
-
+    // 내부 Enum 정의
     public enum MessageType {
-        TEXT,
-        IMAGE,
-        EMOJI
+        TEXT, IMAGE, SYSTEM
     }
 }

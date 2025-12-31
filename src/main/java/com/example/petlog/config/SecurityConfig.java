@@ -15,48 +15,50 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-        private final CorsConfigurationSource corsConfigurationSource;
+    private final CorsConfigurationSource corsConfigurationSource;
 
-        @Bean
-        public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-                http
-                                // 1. CORS 설정 적용
-                                .cors(AbstractHttpConfigurer::disable)
-                                // 2. CSRF 해제
-                                .csrf(AbstractHttpConfigurer::disable)
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+                // 1. CORS 설정 적용 (Gateway에서 처리하므로 Backend는 disable)
+                .cors(AbstractHttpConfigurer::disable)
+                // 2. CSRF 해제
+                .csrf(AbstractHttpConfigurer::disable)
 
-                                // 3. Form 로그인, Basic 인증 해제 (JWT)
-                                .formLogin(AbstractHttpConfigurer::disable)
-                                .httpBasic(AbstractHttpConfigurer::disable)
+                // 3. Form 로그인, Basic 인증 해제 (JWT)
+                .formLogin(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable)
 
-                                // 4. 경로별 인가 설정
-                                .authorizeHttpRequests(auth -> auth
+                // 4. 경로별 인가 설정
+                .authorizeHttpRequests(auth -> auth
+                        // [추가] WebSocket 연결 엔드포인트 허용
+                        .requestMatchers("/ws-chat/**", "/ws-chat").permitAll()
 
-                                                // Kubernetes 헬스체크 허용
-                                                .requestMatchers(
-                                                                "/actuator/health",
-                                                                "/actuator/health/**")
-                                                .permitAll()
+                        // Kubernetes 헬스체크 허용
+                        .requestMatchers(
+                                "/actuator/health",
+                                "/actuator/health/**")
+                        .permitAll()
 
-                                                // Swagger 관련 경로 모두 허용 (로그인 없이 접속 가능)
-                                                .requestMatchers(
-                                                                "/v3/api-docs/**",
-                                                                "/swagger-ui/**",
-                                                                "/swagger-ui.html")
-                                                .permitAll()
+                        // Swagger 관련 경로 모두 허용 (로그인 없이 접속 가능)
+                        .requestMatchers(
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html")
+                        .permitAll()
 
-                                                // PetMate & Message API 허용
-                                                .requestMatchers(
-                                                                "/petmate/**",
-                                                                "/messages/**",
-                                                                "/geocoding/**")
-                                                .permitAll()
+                        // PetMate & Message API 허용
+                        .requestMatchers(
+                                "/petmate/**",
+                                "/messages/**",
+                                "/geocoding/**")
+                        .permitAll()
 
-                                                // 개발 초기 : 아래처럼 다 열어두고 시작
-                                                // .anyRequest().authenticated() // (개발 후: 나머지는 인증 필요)
-                                                .anyRequest().permitAll() // (개발 편의상: 일단 다 허용)
-                                );
+                        // 개발 초기 : 아래처럼 다 열어두고 시작
+                        // .anyRequest().authenticated() // (개발 후: 나머지는 인증 필요)
+                        .anyRequest().permitAll() // (개발 편의상: 일단 다 허용)
+                );
 
-                return http.build();
-        }
+        return http.build();
+    }
 }

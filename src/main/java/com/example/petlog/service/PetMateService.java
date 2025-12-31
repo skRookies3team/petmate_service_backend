@@ -11,6 +11,7 @@ import com.example.petlog.dto.response.PetMateResponse;
 import com.example.petlog.dto.response.UserInfoResponse;
 import com.example.petlog.entity.PetMate;
 import com.example.petlog.entity.PetMateMatch;
+import com.example.petlog.repository.ChatRoomRepository;
 import com.example.petlog.repository.PetMateMatchRepository;
 import com.example.petlog.repository.PetMateRepository;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ public class PetMateService {
     private final PetMateMatchRepository petMateMatchRepository;
     private final MessageService messageService;
     private final UserServiceClient userServiceClient;
+    private final ChatRoomRepository chatRoomRepository;
 
     @Transactional
     public PetMateResponse createOrUpdateProfile(PetMateRequest request) {
@@ -518,4 +520,6 @@ public class PetMateService {
         }
         return deleted;
     }
+
+
 }
