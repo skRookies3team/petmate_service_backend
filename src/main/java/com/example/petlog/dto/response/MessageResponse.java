@@ -18,5 +18,5 @@ public class MessageResponse {
     private String content;
     private String messageType;
     private Boolean isRead;
-    private LocalDateTime createdAt;
+    private String createdAt;
 }

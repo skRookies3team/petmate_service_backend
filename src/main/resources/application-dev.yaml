@@ -12,6 +12,7 @@ spring:
 
   jpa:
     hibernate:
+      # dev 프로필에서도 초기화를 원하시면 create 또는 create-drop 사용
       ddl-auto: update
     show-sql: true
     database-platform: org.hibernate.dialect.PostgreSQLDialect
@@ -19,15 +20,17 @@ spring:
       hibernate:
         format_sql: true
 
+# 개발 환경에서도 Gateway(8000)를 타는 것이 좋습니다.
+# 만약 개별 서비스 테스트 중이라 직접 연결해야 한다면 포트를 변경하세요 (예: 8081)
 external:
   user-service:
-    url: http://localhost:8080/
+    url: http://localhost:8000
   pet-service:
-    url: http://localhost:8080/
+    url: http://localhost:8000
   notification-service:
-    url: http://localhost:8083/
+    url: http://localhost:8083
   storage-service:
-    url: http://localhost:8084/
+    url: http://localhost:8084
 
 cloud:
   openfeign:

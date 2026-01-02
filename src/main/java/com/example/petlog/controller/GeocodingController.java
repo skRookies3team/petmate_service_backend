@@ -18,7 +18,7 @@ import java.util.List;
  * Kakao Maps Geocoding API 사용
  */
 @RestController
-@RequestMapping("/geocoding")
+@RequestMapping("/api/geocoding")
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Geocoding", description = "좌표-주소 변환 API")
