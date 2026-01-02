@@ -17,6 +17,6 @@ public class ChatRoomResponse {
     private String petName;
     private String petPhoto;
     private String lastMessage;
-    private LocalDateTime lastMessageAt;
+    private String lastMessageAt;
     private Long unreadCount;
 }
