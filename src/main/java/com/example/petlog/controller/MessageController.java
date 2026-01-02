@@ -92,4 +92,15 @@ public class MessageController {
     public ResponseEntity<Long> getTotalUnreadCount(@PathVariable Long userId) {
         return ResponseEntity.ok(messageService.getTotalUnreadCount(userId));
     }
+
+    /**
+     * 채팅방 삭제
+     */
+    @DeleteMapping("/room/{chatRoomId}")
+    public ResponseEntity<Void> deleteChatRoom(
+            @PathVariable Long chatRoomId,
+            @RequestParam Long userId) {
+        messageService.deleteChatRoom(chatRoomId, userId);
+        return ResponseEntity.ok().build();
+    }
 }
