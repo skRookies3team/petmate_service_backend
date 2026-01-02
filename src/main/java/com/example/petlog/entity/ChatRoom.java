@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Getter
-@Setter // Service에서 상태 변경(setLastMessage 등)을 위해 Setter 필요
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -21,23 +21,24 @@ public class ChatRoom {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    // [핵심] DB 컬럼명을 명확하게 지정하여 에러 방지
+    @Column(name = "user1_id", nullable = false)
     private Long user1Id;
 
-    @Column(nullable = false)
+    @Column(name = "user2_id", nullable = false)
     private Long user2Id;
 
-    // 매칭 취소 시 방을 비활성화하거나 삭제하기 위한 플래그
-    @Column(nullable = false)
+    @Column(name = "is_active", nullable = false)
     @Builder.Default
     private Boolean isActive = true;
 
-    // ★ 성능 최적화: 채팅방 목록 조회 시 메시지 테이블 조인 없이 마지막 내용 표시
+    @Column(name = "last_message")
     private String lastMessage;
 
+    @Column(name = "last_message_at")
     private LocalDateTime lastMessageAt;
 
     @CreatedDate
-    @Column(updatable = false)
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 }

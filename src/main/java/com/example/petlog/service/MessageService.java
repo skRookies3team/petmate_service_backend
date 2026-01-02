@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -31,51 +32,72 @@ public class MessageService {
     // 1. 채팅방 생성 또는 조회
     @Transactional
     public ChatRoomResponse createOrGetChatRoom(Long userId1, Long userId2) {
-        // (A) user1-user2 순서로 찾기
-        Optional<ChatRoom> roomOpt = chatRoomRepository.findByUser1IdAndUser2Id(userId1, userId2);
+        try {
+            Optional<ChatRoom> roomOpt = chatRoomRepository.findByUser1IdAndUser2Id(userId1, userId2);
+            if (roomOpt.isEmpty()) {
+                roomOpt = chatRoomRepository.findByUser2IdAndUser1Id(userId1, userId2);
+            }
 
-        // (B) 없으면 user2-user1 순서로 찾기
-        if (roomOpt.isEmpty()) {
-            roomOpt = chatRoomRepository.findByUser2IdAndUser1Id(userId1, userId2);
+            return roomOpt
+                    .map(room -> convertToChatRoomResponse(room, userId1))
+                    .orElseGet(() -> {
+                        ChatRoom room = ChatRoom.builder()
+                                .user1Id(userId1)
+                                .user2Id(userId2)
+                                .isActive(true)
+                                .createdAt(LocalDateTime.now())
+                                .build();
+                        ChatRoom savedRoom = chatRoomRepository.save(room);
+                        return convertToChatRoomResponse(savedRoom, userId1);
+                    });
+        } catch (Exception e) {
+            log.error("채팅방 생성 에러: ", e);
+            throw new RuntimeException("채팅방 생성 실패");
         }
-
-        return roomOpt
-                .map(room -> convertToChatRoomResponse(room, userId1))
-                .orElseGet(() -> {
-                    // (C) 둘 다 없으면 새로 생성 (테이블: chat_room)
-                    ChatRoom room = ChatRoom.builder()
-                            .user1Id(userId1)
-                            .user2Id(userId2)
-                            .isActive(true)
-                            .createdAt(LocalDateTime.now())
-                            .build();
-                    chatRoomRepository.save(room);
-                    return convertToChatRoomResponse(room, userId1);
-                });
     }
 
-    // 2. 내 채팅방 목록 조회
     @Transactional(readOnly = true)
     public List<ChatRoomResponse> getChatRooms(Long userId) {
-        // (A) 단순 조회 (테이블: chat_room)
-        // isActive 체크 없이 일단 다 가져오거나, 필요하면 AndIsActiveTrue 메서드 사용
-        List<ChatRoom> rooms = chatRoomRepository.findByUser1IdOrUser2Id(userId, userId);
+        System.out.println("============ [Debug] getChatRooms 시작 ============");
+        try {
+            // 1. DB 조회
+            System.out.println("[Debug] 1. DB 조회 시도 (UserId: " + userId + ")");
+            List<ChatRoom> rooms = chatRoomRepository.findMyChatRooms(userId);
+            System.out.println("[Debug] 2. DB 조회 성공. 방 개수: " + (rooms != null ? rooms.size() : "NULL"));
 
-        // (B) 자바에서 최신순 정렬 (Null Safe - DB 쿼리 에러 방지)
-        rooms.sort((r1, r2) -> {
-            LocalDateTime t1 = r1.getLastMessageAt() != null ? r1.getLastMessageAt() : r1.getCreatedAt();
-            LocalDateTime t2 = r2.getLastMessageAt() != null ? r2.getLastMessageAt() : r2.getCreatedAt();
+            if (rooms == null) return new ArrayList<>();
 
-            // 혹시라도 createdAt조차 null인 경우 현재시간 처리 (방어 코드)
-            if (t1 == null) t1 = LocalDateTime.now();
-            if (t2 == null) t2 = LocalDateTime.now();
+            // 2. 정렬
+            System.out.println("[Debug] 3. 정렬 시작");
+            rooms.sort((r1, r2) -> {
+                LocalDateTime t1 = r1.getLastMessageAt() != null ? r1.getLastMessageAt() : r1.getCreatedAt();
+                LocalDateTime t2 = r2.getLastMessageAt() != null ? r2.getLastMessageAt() : r2.getCreatedAt();
+                if (t1 == null) t1 = LocalDateTime.now();
+                if (t2 == null) t2 = LocalDateTime.now();
+                return t2.compareTo(t1);
+            });
 
-            return t2.compareTo(t1); // 내림차순
-        });
+            // 3. 변환
+            System.out.println("[Debug] 4. DTO 변환 시작");
+            List<ChatRoomResponse> responseList = new ArrayList<>();
+            for (ChatRoom room : rooms) {
+                try {
+                    System.out.println("   -> 방 ID " + room.getId() + " 변환 중...");
+                    responseList.add(convertToChatRoomResponse(room, userId));
+                } catch (Exception innerEx) {
+                    System.err.println("   -> [ERROR] 방 ID " + room.getId() + " 변환 실패: " + innerEx.getMessage());
+                    innerEx.printStackTrace(); // 에러 스택 출력
+                }
+            }
 
-        return rooms.stream()
-                .map(room -> convertToChatRoomResponse(room, userId))
-                .collect(Collectors.toList());
+            System.out.println("============ [Debug] getChatRooms 종료 (성공) ============");
+            return responseList;
+
+        } catch (Exception e) {
+            System.err.println("============ [CRITICAL ERROR] getChatRooms 터짐 ============");
+            e.printStackTrace(); // 콘솔에 빨간 글씨로 에러 원인 출력
+            return new ArrayList<>(); // 죽지 않고 빈 리스트 반환
+        }
     }
 
     // 3. 메시지 전송
@@ -84,17 +106,15 @@ public class MessageService {
         ChatRoom chatRoom = chatRoomRepository.findById(request.getChatRoomId())
                 .orElseThrow(() -> new IllegalArgumentException("채팅방이 존재하지 않습니다."));
 
-        // 채팅방 정보 업데이트
         chatRoom.setLastMessage(request.getContent());
         chatRoom.setLastMessageAt(LocalDateTime.now());
         chatRoomRepository.save(chatRoom);
 
-        // 메시지 저장 (테이블: chat_messages)
         Message message = Message.builder()
                 .chatRoom(chatRoom)
                 .senderId(request.getSenderId())
                 .content(request.getContent())
-                .messageType(Message.MessageType.TEXT) // Enum 기본값 안전 처리
+                .messageType(Message.MessageType.TEXT)
                 .isRead(false)
                 .createdAt(LocalDateTime.now())
                 .build();
@@ -111,29 +131,22 @@ public class MessageService {
                 .collect(Collectors.toList());
     }
 
-    // 5. 최근 메시지 조회 (페이징)
+    // 기타 메서드들
     @Transactional(readOnly = true)
     public List<MessageResponse> getRecentMessages(Long chatRoomId, Long userId, int limit) {
         return messageRepository.findTop50ByChatRoomIdOrderByCreatedAtDesc(chatRoomId).stream()
-                .sorted((m1, m2) -> {
-                    LocalDateTime t1 = m1.getCreatedAt() != null ? m1.getCreatedAt() : LocalDateTime.now();
-                    LocalDateTime t2 = m2.getCreatedAt() != null ? m2.getCreatedAt() : LocalDateTime.now();
-                    return t1.compareTo(t2);
-                })
+                .sorted((m1, m2) -> m1.getCreatedAt().compareTo(m2.getCreatedAt()))
                 .map(this::convertToMessageResponse)
                 .collect(Collectors.toList());
     }
 
-    // 6. 읽음 처리
     @Transactional
     public void markMessagesAsRead(Long chatRoomId, Long userId) {
         List<Message> unreadMessages = messageRepository.findByChatRoomIdAndIsReadFalse(chatRoomId);
-
         List<Message> toUpdate = unreadMessages.stream()
-                .filter(m -> !m.getSenderId().equals(userId)) // 내가 보낸 건 읽음처리 안 함
+                .filter(m -> !m.getSenderId().equals(userId))
                 .peek(m -> m.setIsRead(true))
                 .collect(Collectors.toList());
-
         if (!toUpdate.isEmpty()) {
             messageRepository.saveAll(toUpdate);
         }
@@ -144,24 +157,25 @@ public class MessageService {
     }
 
     public Long getTotalUnreadCount(Long userId) {
-        return chatRoomRepository.findByUser1IdOrUser2Id(userId, userId).stream()
-                .mapToLong(room -> getUnreadCount(room.getId(), userId))
-                .sum();
+        try {
+            // [수정] 여기도 @Query 메서드 사용
+            return chatRoomRepository.findMyChatRooms(userId).stream()
+                    .mapToLong(room -> getUnreadCount(room.getId(), userId))
+                    .sum();
+        } catch (Exception e) {
+            return 0L;
+        }
     }
 
-    // =========================================================
-    //  DTO 변환 (User Service 죽었을 때 500 에러 절대 방지)
-    // =========================================================
-
+    // DTO 변환 로직 (안전 장치 포함)
     private ChatRoomResponse convertToChatRoomResponse(ChatRoom room, Long currentUserId) {
         Long otherUserId = room.getUser1Id().equals(currentUserId) ? room.getUser2Id() : room.getUser1Id();
 
-        String otherUserName = "사용자 " + otherUserId;
+        String otherUserName = "User " + otherUserId;
         String otherUserAvatar = null;
         String petName = "반려동물";
 
         try {
-            // ★ 중요: User Service가 죽어있어도 500 에러를 내지 않고 기본값으로 리턴
             UserInfoResponse userInfo = userServiceClient.getUserInfo(otherUserId);
             if (userInfo != null) {
                 otherUserName = userInfo.getUsername();
@@ -171,14 +185,13 @@ public class MessageService {
                 }
             }
         } catch (Exception e) {
-            log.warn("User Service 연동 실패 (ID: {}). 기본값 사용.", otherUserId);
+            // User Service 장애 시 로그만 남기고 진행
+            log.warn("UserService 연동 실패 (ID: {}).", otherUserId);
         }
 
         String lastMessageAtStr = null;
         if (room.getLastMessageAt() != null) {
             lastMessageAtStr = room.getLastMessageAt().toString();
-        } else if (room.getCreatedAt() != null) {
-            lastMessageAtStr = room.getCreatedAt().toString();
         }
 
         return ChatRoomResponse.builder()
@@ -207,11 +220,6 @@ public class MessageService {
             // 무시
         }
 
-        String createdAtStr = null;
-        if (msg.getCreatedAt() != null) {
-            createdAtStr = msg.getCreatedAt().toString();
-        }
-
         return MessageResponse.builder()
                 .id(msg.getId())
                 .chatRoomId(msg.getChatRoom().getId())
@@ -221,7 +229,7 @@ public class MessageService {
                 .content(msg.getContent())
                 .messageType(msg.getMessageType().name())
                 .isRead(msg.getIsRead())
-                .createdAt(createdAtStr)
+                .createdAt(msg.getCreatedAt() != null ? msg.getCreatedAt().toString() : null)
                 .build();
     }
 }

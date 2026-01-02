@@ -12,9 +12,10 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
+        // [수정] setAllowedOriginPatterns("*")로 모든 출처 허용 (Gateway 뒤에 있으므로 안전)
         registry.addEndpoint("/ws-chat")
-                .setAllowedOriginPatterns("*") // 모든 출처 허용 (Gateway 통과 보장)
-                .withSockJS(); // SockJS 지원 활성화
+                .setAllowedOriginPatterns("*") // 여기가 핵심입니다.
+                .withSockJS();
     }
 
     @Override

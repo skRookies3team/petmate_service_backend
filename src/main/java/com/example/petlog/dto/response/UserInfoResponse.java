@@ -1,5 +1,6 @@
 package com.example.petlog.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties; // 필수 추가
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -7,14 +8,14 @@ import lombok.NoArgsConstructor;
 
 import java.util.List;
 
-/**
- * user-service에서 가져온 사용자 정보를 매핑하는 DTO
- */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties(ignoreUnknown = true) // [핵심] 모르는 필드가 와도 에러 안 나게 무시
 public class UserInfoResponse {
+
+    private Long id; // [추가] 혹시 ID가 넘어올 수 있으므로 추가
     private String username;
     private String genderType;
     private String profileImage;
@@ -30,6 +31,7 @@ public class UserInfoResponse {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
+    @JsonIgnoreProperties(ignoreUnknown = true) // [핵심] 여기도 추가
     public static class PetInfo {
         private Long petId;
         private String petName;

@@ -16,7 +16,7 @@ spring:
     hibernate:
       # [중요] create: 시작 시 기존 테이블 삭제 후 재생성 (데이터 초기화됨)
       # update: 스키마만 변경 (데이터 유지)
-      ddl-auto: create
+      ddl-auto: update
     show-sql: true
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     properties:

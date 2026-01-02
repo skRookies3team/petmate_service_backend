@@ -25,27 +25,25 @@ public class Message {
     @JoinColumn(name = "chat_room_id", nullable = false)
     private ChatRoom chatRoom;
 
-    @Column(nullable = false)
+    @Column(name = "sender_id", nullable = false)
     private Long senderId;
 
     @Column(columnDefinition = "TEXT")
     private String content;
 
-    // 텍스트, 이미지, 시스템 메시지 등을 구분
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "message_type", nullable = false)
     @Builder.Default
     private MessageType messageType = MessageType.TEXT;
 
-    @Column(nullable = false)
+    @Column(name = "is_read", nullable = false)
     @Builder.Default
     private Boolean isRead = false;
 
     @CreatedDate
-    @Column(updatable = false)
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    // 내부 Enum 정의
     public enum MessageType {
         TEXT, IMAGE, SYSTEM
     }
