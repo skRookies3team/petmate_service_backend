@@ -13,7 +13,7 @@ spring:
   jpa:
     hibernate:
       # dev 프로필에서도 초기화를 원하시면 create 또는 create-drop 사용
-      ddl-auto: update
+      ddl-auto: create
     show-sql: true
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     properties:

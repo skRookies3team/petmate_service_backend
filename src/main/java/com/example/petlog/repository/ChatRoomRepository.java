@@ -2,8 +2,6 @@ package com.example.petlog.repository;
 
 import com.example.petlog.entity.ChatRoom;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -12,16 +10,16 @@ import java.util.Optional;
 @Repository
 public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
 
-    @Query("SELECT c FROM ChatRoom c WHERE (c.user1Id = :userId1 AND c.user2Id = :userId2) OR (c.user1Id = :userId2 AND c.user2Id = :userId1)")
-    Optional<ChatRoom> findByUsers(@Param("userId1") Long userId1, @Param("userId2") Long userId2);
+    // 1. 특정 두 유저 간의 채팅방 조회 (user1 -> user2 순서)
+    Optional<ChatRoom> findByUser1IdAndUser2Id(Long user1Id, Long user2Id);
 
-    // [수정] NULL 안전 처리 (메시지가 없으면 생성시간 기준으로 정렬)
-    @Query("SELECT c FROM ChatRoom c " +
-            "WHERE (c.user1Id = :userId OR c.user2Id = :userId) " +
-            "ORDER BY COALESCE(c.lastMessageAt, c.createdAt) DESC")
-    List<ChatRoom> findActiveByUserId(@Param("userId") Long userId);
+    // 2. 특정 두 유저 간의 채팅방 조회 (user2 -> user1 순서)
+    Optional<ChatRoom> findByUser2IdAndUser1Id(Long user2Id, Long user1Id);
 
-    @Query("SELECT CASE WHEN COUNT(c) > 0 THEN true ELSE false END FROM ChatRoom c " +
-            "WHERE (c.user1Id = :userId1 AND c.user2Id = :userId2) OR (c.user1Id = :userId2 AND c.user2Id = :userId1)")
-    boolean existsByUsers(@Param("userId1") Long userId1, @Param("userId2") Long userId2);
+    // 3. 내 채팅방 목록 조회 (내가 user1이거나 user2인 경우 모두 조회)
+    // SQL: SELECT * FROM chat_room WHERE user1_id = ? OR user2_id = ?
+    List<ChatRoom> findByUser1IdOrUser2Id(Long user1Id, Long user2Id);
+
+    // 4. 활성화된 방만 찾고 싶다면 아래처럼 사용 (Service에서 사용 시)
+    List<ChatRoom> findByUser1IdOrUser2IdAndIsActiveTrue(Long user1Id, Long user2Id);
 }

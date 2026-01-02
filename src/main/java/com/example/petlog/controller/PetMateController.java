@@ -7,6 +7,7 @@ import com.example.petlog.dto.response.MatchResponse;
 import com.example.petlog.dto.response.PendingRequestResponse;
 import com.example.petlog.dto.response.PetMateResponse;
 import com.example.petlog.service.PetMateService;
+import lombok.Data; // [추가]
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -17,10 +18,29 @@ import java.util.List;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/petmate") // Gateway 경로와 일치 (/api/petmate)
+@RequestMapping("/api/petmate")
 public class PetMateController {
 
     private final PetMateService petMateService;
+
+    // --- [1. DTO 추가] 응답 요청 데이터를 받기 위한 그릇 ---
+    @Data
+    public static class RespondRequest {
+        private Long userId;
+        private boolean accept;
+    }
+    // ----------------------------------------------------
+
+    // [수정됨] 경로를 /requests/{matchId}/respond 로 변경하고 @RequestBody 적용
+    @PostMapping("/requests/{matchId}/respond")
+    public ResponseEntity<MatchResponse> respondToRequest(
+            @PathVariable Long matchId,
+            @RequestBody RespondRequest request) { // @RequestParam -> @RequestBody로 변경
+
+        return ResponseEntity.ok(
+                petMateService.respondToRequest(matchId, request.getUserId(), request.isAccept())
+        );
+    }
 
     // 1. 후보 추천 조회
     @PostMapping("/candidates/{userId}")
@@ -60,15 +80,6 @@ public class PetMateController {
         return ResponseEntity.ok(petMateService.getPendingRequestsCount(userId));
     }
 
-    // 7. 요청 응답 (수락/거절)
-    @PostMapping("/respond/{matchId}")
-    public ResponseEntity<MatchResponse> respondToRequest(
-            @PathVariable Long matchId,
-            @RequestParam Long userId,
-            @RequestParam boolean accept) {
-        return ResponseEntity.ok(petMateService.respondToRequest(matchId, userId, accept));
-    }
-
     // 8. 매칭된 친구 목록
     @GetMapping("/matches/{userId}")
     public ResponseEntity<List<MatchResponse>> getMatches(@PathVariable Long userId) {
@@ -89,15 +100,15 @@ public class PetMateController {
         return ResponseEntity.ok(petMateService.unfriend(userId, matchedUserId));
     }
 
-    // [중요] 11. 저장된 위치 조회 (404 에러 해결 부분!)
+    // 11. 저장된 위치 조회
     @GetMapping("/location/{userId}")
     public ResponseEntity<PetMateResponse> getSavedLocation(@PathVariable Long userId) {
         PetMateResponse response = petMateService.getSavedLocation(userId);
-        return ResponseEntity.ok(response); // null이면 빈 바디로 200 OK
+        return ResponseEntity.ok(response);
     }
 
-    // 12. 위치 업데이트 (프론트엔드 LocationTracker 등에서 호출)
-    @PostMapping("/location/{userId}")
+    // 12. 위치 업데이트
+    @PutMapping("/location/{userId}")
     public ResponseEntity<Boolean> updateLocation(
             @PathVariable Long userId,
             @RequestParam Double latitude,
