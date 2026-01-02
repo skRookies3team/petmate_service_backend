@@ -183,7 +183,15 @@ public class PetMateService {
                             .matchedAt(match.getMatchedAt())
                             .build();
                 })
+                .filter(distinctByKey(MatchResponse::getMatchedUserId))
                 .collect(Collectors.toList());
+    }
+
+    // Helper method for distinct by key
+    private static <T> java.util.function.Predicate<T> distinctByKey(
+            java.util.function.Function<? super T, ?> keyExtractor) {
+        java.util.Set<Object> seen = java.util.concurrent.ConcurrentHashMap.newKeySet();
+        return t -> seen.add(keyExtractor.apply(t));
     }
 
     @Transactional

@@ -8,6 +8,7 @@ import com.example.petlog.entity.Message;
 import com.example.petlog.entity.PetMate;
 import com.example.petlog.repository.ChatRoomRepository;
 import com.example.petlog.repository.MessageRepository;
+import com.example.petlog.repository.PetMateMatchRepository;
 import com.example.petlog.repository.PetMateRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -25,20 +26,39 @@ public class MessageService {
     private final ChatRoomRepository chatRoomRepository;
     private final MessageRepository messageRepository;
     private final PetMateRepository petMateRepository;
+    private final PetMateMatchRepository petMateMatchRepository;
 
     @Transactional
     public ChatRoomResponse createOrGetChatRoom(Long userId1, Long userId2) {
-        ChatRoom chatRoom = chatRoomRepository.findByUsers(userId1, userId2)
+        // 이미 존재하는 채팅방 확인
+        return chatRoomRepository.findByUsers(userId1, userId2)
+                .map(room -> convertToChatRoomResponse(room, userId1))
                 .orElseGet(() -> {
+                    // 매칭 여부 확인 (매칭된 유저끼리만 채팅 가능)
+                    if (!petMateMatchRepository.isMatched(userId1, userId2)) {
+                        throw new IllegalArgumentException("채팅을 시작할 수 없습니다. 서로 매칭된 친구가 아닙니다.");
+                    }
+
                     ChatRoom newRoom = ChatRoom.builder()
                             .user1Id(userId1)
                             .user2Id(userId2)
                             .isActive(true)
                             .build();
-                    return chatRoomRepository.save(newRoom);
+                    return convertToChatRoomResponse(chatRoomRepository.save(newRoom), userId1);
                 });
+    }
 
-        return convertToChatRoomResponse(chatRoom, userId1);
+    @Transactional
+    public void deleteChatRoom(Long chatRoomId, Long userId) {
+        ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
+                .orElseThrow(() -> new RuntimeException("Chat room not found"));
+
+        // 권한 확인
+        if (!chatRoom.getUser1Id().equals(userId) && !chatRoom.getUser2Id().equals(userId)) {
+            throw new RuntimeException("Not authorized to delete this chat room");
+        }
+
+        chatRoomRepository.delete(chatRoom);
     }
 
     public List<ChatRoomResponse> getChatRooms(Long userId) {
