@@ -5,7 +5,6 @@ spring:
   application:
     name: petmate-service
 
-  # PostgreSQL 설정
   datasource:
     url: "${DB_URL}"
     username: "${DB_USERNAME}"
@@ -14,8 +13,6 @@ spring:
 
   jpa:
     hibernate:
-      # [중요] create: 시작 시 기존 테이블 삭제 후 재생성 (데이터 초기화됨)
-      # update: 스키마만 변경 (데이터 유지)
       ddl-auto: update
     show-sql: true
     database-platform: org.hibernate.dialect.PostgreSQLDialect
@@ -23,12 +20,10 @@ spring:
       hibernate:
         format_sql: true
 
-  # MongoDB 설정
   data:
     mongodb:
       uri: "${MONGO_URI}"
 
-  # MSA Feign Client 설정
   cloud:
     openfeign:
       client:
@@ -36,17 +31,23 @@ spring:
           default:
             connectTimeout: 5000
             readTimeout: 5000
-          # Storage Service가 없을 때 에러 방지용
           storage-service:
             enabled: false
 
 server:
   port: 8089
-  # [삭제됨] server.servlet.context-path: /api
-  # 이유: Controller에 이미 /api가 붙어있어서 이중 경로(/api/api/...)로 인한 404 에러 방지
+  # [필수 추가] Gateway(Proxy) 뒤에서 HTTPS/WS 프로토콜을 올바르게 인식하기 위해 필요
+  forward-headers-strategy: framework
+
+# [추가 권장] 배포 환경 디버깅용 로그 설정
+logging:
+  level:
+    com.example.petlog: DEBUG # 우리 프로젝트 패키지
+    org.springframework.web.socket: DEBUG # 웹소켓 연결 로그
+    org.springframework.cloud.gateway: INFO
 
 # === 외부 서비스 URL 설정 ===
-# Gateway(8000)를 바라보도록 설정
+# 기본값은 로컬이지만, 배포 시엔 환경변수로 덮어씌워야 함
 external:
   user-service:
     url: ${USER_SERVICE_URL:http://localhost:8000}
@@ -57,11 +58,9 @@ external:
   storage-service:
     url: ${STORAGE_SERVICE_URL:http://localhost:8084}
 
-# Kakao API 설정
 kakao:
   rest-api-key: ${KAKAO_REST_API_KEY:YOUR_KAKAO_KEY}
 
-# Swagger 설정
 springdoc:
   api-docs:
     path: /v3/api-docs
