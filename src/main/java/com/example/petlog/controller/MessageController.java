@@ -33,7 +33,7 @@ public class MessageController {
      */
     @GetMapping("/rooms/{userId}")
     public ResponseEntity<List<ChatRoomResponse>> getChatRooms(@PathVariable("userId") Long userId) {
-        log.info("🔍 [API] 채팅방 목록 조회 요청 - UserID: {}", userId);
+        System.out.println("🔍 [API] 채팅방 목록 조회 요청 - UserID: {}"+ userId.toString());
         return ResponseEntity.ok(messageService.getChatRooms(userId));
     }
 
