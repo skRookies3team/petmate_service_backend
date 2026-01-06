@@ -50,13 +50,13 @@ logging:
 # 기본값은 로컬이지만, 배포 시엔 환경변수로 덮어씌워야 함
 external:
   user-service:
-    url: ${USER_SERVICE_URL:http://localhost:8000}
+    url: ${USER_SERVICE_URL:http://localhost:8080}
   pet-service:
-    url: ${PET_SERVICE_URL:http://localhost:8000}
+    url: ${PET_SERVICE_URL:http://localhost:8080}
   notification-service:
-    url: ${NOTIFICATION_SERVICE_URL:http://localhost:8083}
+    url: ${NOTIFICATION_SERVICE_URL:http://localhost:8080}
   storage-service:
-    url: ${STORAGE_SERVICE_URL:http://localhost:8084}
+    url: ${STORAGE_SERVICE_URL:http://localhost:8080}
 
 kakao:
   rest-api-key: ${KAKAO_REST_API_KEY:YOUR_KAKAO_KEY}

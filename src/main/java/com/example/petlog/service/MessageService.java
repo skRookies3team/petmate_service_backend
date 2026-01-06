@@ -110,6 +110,17 @@ public class MessageService {
         chatRoom.setLastMessageAt(LocalDateTime.now());
         chatRoomRepository.save(chatRoom);
 
+        Message.MessageType type = Message.MessageType.TEXT;
+        if (request.getMessageType() != null) {
+            try {
+                // 대소문자 무관하게 처리 (예: "image" -> IMAGE)
+                type = Message.MessageType.valueOf(request.getMessageType().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid message type: {}. Defaulting to TEXT.", request.getMessageType());
+                type = Message.MessageType.TEXT;
+            }
+        }
+
         Message message = Message.builder()
                 .chatRoom(chatRoom)
                 .senderId(request.getSenderId())
