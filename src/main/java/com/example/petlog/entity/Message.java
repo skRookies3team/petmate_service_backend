@@ -45,6 +45,6 @@ public class Message {
     private LocalDateTime createdAt;
 
     public enum MessageType {
-        TEXT, IMAGE, SYSTEM
+        TEXT, IMAGE, VIDEO, SYSTEM // [수정] VIDEO 타입 추가
     }
 }
