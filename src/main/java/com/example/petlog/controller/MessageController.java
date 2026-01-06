@@ -108,6 +108,19 @@ public class MessageController {
         return ResponseEntity.ok(messageService.getTotalUnreadCount(userId));
     }
 
+    /**
+     * 8. 채팅방 나가기 (삭제)
+     * URL: DELETE /api/messages/room/{chatRoomId}
+     */
+    @DeleteMapping("/room/{chatRoomId}")
+    public ResponseEntity<Void> leaveChatRoom(
+            @PathVariable("chatRoomId") Long chatRoomId,
+            @RequestParam("userId") Long userId) {
+        log.info("🗑️ [API] 채팅방 나가기 요청 - RoomID: {}, UserID: {}", chatRoomId, userId);
+        messageService.leaveChatRoom(chatRoomId, userId);
+        return ResponseEntity.ok().build();
+    }
+
     // ==========================================
     //  WebSocket Handler
     // ==========================================

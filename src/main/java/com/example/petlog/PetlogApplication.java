@@ -1,10 +1,13 @@
 package com.example.petlog;
 
+import jakarta.annotation.PostConstruct;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing; // [중요]
+
+import java.util.TimeZone;
 
 @SpringBootApplication
 @EnableDiscoveryClient
@@ -16,4 +19,8 @@ public class PetlogApplication {
         SpringApplication.run(PetlogApplication.class, args);
     }
 
+    @PostConstruct
+    public void init() {
+        TimeZone.setDefault(TimeZone.getTimeZone("Asia/Seoul"));
+    }
 }
