@@ -101,15 +101,13 @@ public class MessageService {
     }
 
     // 3. 메시지 전송
+    // 3. 메시지 전송
     @Transactional
     public MessageResponse sendMessage(MessageRequest request) {
         ChatRoom chatRoom = chatRoomRepository.findById(request.getChatRoomId())
                 .orElseThrow(() -> new IllegalArgumentException("채팅방이 존재하지 않습니다."));
 
-        chatRoom.setLastMessage(request.getContent());
-        chatRoom.setLastMessageAt(LocalDateTime.now());
-        chatRoomRepository.save(chatRoom);
-
+        // [1] 먼저 메시지 타입을 판별합니다.
         Message.MessageType type = Message.MessageType.TEXT;
         if (request.getMessageType() != null) {
             try {
@@ -121,11 +119,23 @@ public class MessageService {
             }
         }
 
+        // [2] 채팅방 목록에 보여줄 미리보기 텍스트 결정 (이미지면 "사진", 아니면 내용 그대로)
+        String previewContent = request.getContent();
+        if (type == Message.MessageType.IMAGE) {
+            previewContent = "사진";
+        }
+
+        // [3] 채팅방 정보 업데이트 (마지막 메시지 내용 및 시간)
+        chatRoom.setLastMessage(previewContent);
+        chatRoom.setLastMessageAt(LocalDateTime.now());
+        chatRoomRepository.save(chatRoom);
+
+        // [4] 실제 메시지 저장
         Message message = Message.builder()
                 .chatRoom(chatRoom)
                 .senderId(request.getSenderId())
-                .content(request.getContent())
-                .messageType(Message.MessageType.TEXT)
+                .content(request.getContent()) // DB에는 원본 URL 저장
+                .messageType(type)             // [중요 수정] 위에서 판별한 type 변수를 사용 (기존 코드의 하드코딩 TEXT 제거)
                 .isRead(false)
                 .createdAt(LocalDateTime.now())
                 .build();
@@ -140,6 +150,25 @@ public class MessageService {
         return messageRepository.findByChatRoomIdOrderByCreatedAtAsc(chatRoomId).stream()
                 .map(this::convertToMessageResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void leaveChatRoom(Long chatRoomId, Long userId) {
+        ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
+                .orElseThrow(() -> new IllegalArgumentException("채팅방이 존재하지 않습니다."));
+
+        // 권한 확인 (방에 속한 유저인지)
+        if (!chatRoom.getUser1Id().equals(userId) && !chatRoom.getUser2Id().equals(userId)) {
+            throw new IllegalArgumentException("해당 채팅방에 접근 권한이 없습니다.");
+        }
+
+        // 방법 A: 방 자체를 삭제 (대화 내역도 다 사라짐)
+        // messageRepository.deleteByChatRoomId(chatRoomId); // (필요 시 메시지 먼저 삭제)
+        // chatRoomRepository.delete(chatRoom);
+
+        // 방법 B: 방을 비활성화 (추천) -> 목록에서 안 보이게 처리 필요
+        chatRoom.setIsActive(false);
+        chatRoomRepository.save(chatRoom);
     }
 
     // 기타 메서드들
